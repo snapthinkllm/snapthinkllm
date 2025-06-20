@@ -1,10 +1,10 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron'); // ✅ Add `shell`
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
 function createWindow() {
   const win = new BrowserWindow({
-    width: 900,
+    width: 1000,
     height: 700,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -15,35 +15,56 @@ function createWindow() {
   win.webContents.openDevTools();
 }
 
-//  Define chat file path
-const chatFilePath = path.join(app.getPath('userData'), 'chat-history.json');
+// 📁 Create directory to store multiple chat sessions
+const chatsDir = path.join(app.getPath('userData'), 'chats');
+if (!fs.existsSync(chatsDir)) {
+  fs.mkdirSync(chatsDir);
+}
 
-// Save chat messages to file
-ipcMain.on('save-chat', (e, messages) => {
+// 💾 Save chat messages to a file based on session ID
+ipcMain.on('save-chat', (e, { id, messages }) => {
   try {
-    fs.writeFileSync(chatFilePath, JSON.stringify(messages, null, 2));
+    const filePath = path.join(chatsDir, `${id}.json`);
+    fs.writeFileSync(filePath, JSON.stringify(messages, null, 2));
   } catch (err) {
-    console.error('Error saving chat:', err);
+    console.error(`Error saving chat (${id}):`, err);
   }
 });
 
-//  Load chat messages from file
-ipcMain.handle('load-chat', () => {
+// 📖 Load chat messages from a file by ID
+ipcMain.handle('load-chat', (e, id) => {
   try {
-    if (fs.existsSync(chatFilePath)) {
-      const data = fs.readFileSync(chatFilePath);
+    const filePath = path.join(chatsDir, `${id}.json`);
+    if (fs.existsSync(filePath)) {
+      const data = fs.readFileSync(filePath);
       return JSON.parse(data);
     }
     return [];
   } catch (e) {
-    console.error('Error loading chat:', e);
+    console.error(`Error loading chat (${id}):`, e);
     return [];
   }
 });
 
-// Show chat folder in system file explorer
+// 📋 List available chat session files
+ipcMain.handle('list-chats', () => {
+  try {
+    const files = fs.readdirSync(chatsDir);
+    return files
+      .filter(file => file.endsWith('.json'))
+      .map(file => ({
+        id: path.basename(file, '.json'),
+        name: path.basename(file, '.json'),
+      }));
+  } catch (e) {
+    console.error('Error listing chat sessions:', e);
+    return [];
+  }
+});
+
+// 📂 Show chat session folder in file explorer
 ipcMain.on('show-chat-folder', () => {
-  shell.showItemInFolder(chatFilePath); 
+  shell.openPath(chatsDir); // Opens folder instead of file
 });
 
 app.whenReady().then(() => {
