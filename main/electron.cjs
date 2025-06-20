@@ -7,11 +7,12 @@ function createWindow() {
     width: 900,
     height: 700,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.cjs'),
     },
   });
 
   win.loadURL('http://localhost:5173');
+  win.webContents.openDevTools(); 
 }
 
 const chatFile = path.join(app.getPath('userData'), 'chat-history.json');
