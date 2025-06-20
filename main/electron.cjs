@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron'); // ✅ Add `shell`
 const path = require('path');
 const fs = require('fs');
 
@@ -12,29 +12,48 @@ function createWindow() {
   });
 
   win.loadURL('http://localhost:5173');
-  win.webContents.openDevTools(); 
+  win.webContents.openDevTools();
 }
 
-const chatFile = path.join(app.getPath('userData'), 'chat-history.json');
+//  Define chat file path
+const chatFilePath = path.join(app.getPath('userData'), 'chat-history.json');
 
+// Save chat messages to file
 ipcMain.on('save-chat', (e, messages) => {
-  fs.writeFileSync(chatFile, JSON.stringify(messages, null, 2));
+  try {
+    fs.writeFileSync(chatFilePath, JSON.stringify(messages, null, 2));
+  } catch (err) {
+    console.error('Error saving chat:', err);
+  }
 });
 
+//  Load chat messages from file
 ipcMain.handle('load-chat', () => {
   try {
-    if (fs.existsSync(chatFile)) {
-      const data = fs.readFileSync(chatFile);
+    if (fs.existsSync(chatFilePath)) {
+      const data = fs.readFileSync(chatFilePath);
       return JSON.parse(data);
     }
     return [];
   } catch (e) {
+    console.error('Error loading chat:', e);
     return [];
   }
 });
 
+// Show chat folder in system file explorer
+ipcMain.on('show-chat-folder', () => {
+  shell.showItemInFolder(chatFilePath); 
+});
+
 app.whenReady().then(() => {
   createWindow();
-  app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow());
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
 });
-app.on('window-all-closed', () => process.platform !== 'darwin' && app.quit());
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit();
+});
