@@ -106,6 +106,15 @@ function App() {
     setLoading(false);
   };
 
+  const deleteChat = async (id) => {
+  await window.chatAPI.deleteChat(id);
+  setSessions(prev => prev.filter(s => s.id !== id));
+  if (chatId === id) {
+    setChatId('');
+    setMessages([]);
+  }
+  };
+
   return (
     <div className="flex h-screen bg-gradient-to-br from-[#f4f7fb] via-[#e6edf7] to-[#dce8f2] dark:from-gray-900 dark:via-gray-800 dark:to-black text-zinc-900 dark:text-white transition-colors">
       {/* Main Chat Column */}
@@ -179,11 +188,12 @@ function App() {
 
       {/* Sidebar */}
       <Sidebar
-          sessions={sessions}
-          chatId={chatId}
-          newChat={newChat}
-          switchChat={switchChat}
-        />
+        sessions={sessions}
+        chatId={chatId}
+        newChat={newChat}
+        switchChat={switchChat}
+        deleteChat={deleteChat}
+      />
   </div>
   );
 }

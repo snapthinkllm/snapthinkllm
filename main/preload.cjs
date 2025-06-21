@@ -12,4 +12,6 @@ contextBridge.exposeInMainWorld('chatAPI', {
 
   // Open folder where chat sessions are stored
   showChatFolder: () => ipcRenderer.send('show-chat-folder'),
+
+  deleteChat: (id) => ipcRenderer.invoke('delete-chat', id),
 });

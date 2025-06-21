@@ -64,7 +64,23 @@ ipcMain.handle('list-chats', () => {
 
 // 📂 Show chat session folder in file explorer
 ipcMain.on('show-chat-folder', () => {
-  shell.openPath(chatsDir); // Opens folder instead of file
+  shell.openPath(chatsDir);
+});
+
+// 🗑️ Delete a chat session by ID
+ipcMain.handle('delete-chat', async (event, chatId) => {
+  try {
+    const filePath = path.join(chatsDir, `${chatId}.json`);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      return { success: true };
+    } else {
+      throw new Error('Chat file not found');
+    }
+  } catch (err) {
+    console.error(`Error deleting chat (${chatId}):`, err);
+    throw err;
+  }
 });
 
 app.whenReady().then(() => {
