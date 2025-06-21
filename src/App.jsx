@@ -66,8 +66,11 @@ function App() {
         body: JSON.stringify({
           model: 'gemma3:4b',
           messages: newMessages,
+          stream: false
         }),
       });
+
+      console.log('API response status:', res.status, res);
 
       const data = await res.json();
       const assistantMessage = data.message
