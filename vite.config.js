@@ -1,7 +1,18 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 import tailwindcss from '@tailwindcss/vite'
-// https://vite.dev/config/
+import path from 'path'
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(),],
+  base: './', // Needed for Electron file:// protocol
+  plugins: [react(), tailwindcss()],
+  build: {
+    outDir: 'main/dist',       // Output path Electron will load from
+    emptyOutDir: true,
+  },
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, 'src'), // Optional: for cleaner imports
+    },
+  },
 })
