@@ -1,4 +1,8 @@
+
+
 # Getting started
+
+UI for Snapthinkllm 
 
 1. Clone the repo
 2. Run: npm install
