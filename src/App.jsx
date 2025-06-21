@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
+import Sidebar from './ui-elements/Sidebar';
 
 function App() {
   const [chatId, setChatId] = useState('');
@@ -106,11 +107,11 @@ function App() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-[#f4f7fb] via-[#e6edf7] to-[#dce8f2] dark:from-gray-900 dark:via-gray-800 dark:to-black text-zinc-900 dark:text-white transition-colors">
+    <div className="flex h-screen bg-gradient-to-br from-[#f4f7fb] via-[#e6edf7] to-[#dce8f2] dark:from-gray-900 dark:via-gray-800 dark:to-black text-zinc-900 dark:text-white transition-colors">
       {/* Main Chat Column */}
-      <div className="flex flex-col flex-1">
+      <div className="flex flex-col flex-1 h-full">
         {/* Header */}
-        <header className="p-4 bg-white/80 dark:bg-gray-800/90 backdrop-blur border-b border-gray-200 dark:border-gray-700 shadow-sm sticky top-0 z-10 flex justify-between items-center">
+        <header className="p-4 bg-white/80 dark:bg-gray-800/90 backdrop-blur border-b border-gray-200 dark:border-gray-700 shadow-sm flex justify-between items-center">
           <h1 className="text-2xl font-bold tracking-tight text-[#1e4b6d] dark:text-lime-300">🧠 LLM UI</h1>
           <div className="space-x-2">
             <button
@@ -144,10 +145,7 @@ function App() {
                 {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>
               <div className="prose dark:prose-invert max-w-none">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  rehypePlugins={[rehypeRaw]}
-                >
+                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                   {m.content}
                 </ReactMarkdown>
               </div>
@@ -161,11 +159,7 @@ function App() {
           <div ref={messagesEndRef}></div>
         </main>
 
-        <div className="text-sm px-4 py-2 bg-white/60 dark:bg-gray-800/80 backdrop-blur border-t border-gray-200 dark:border-gray-700 text-center">
-          💬 {messages.length} messages ({messages.filter(m => m.role === 'user').length} from you)
-        </div>
-
-        {/* Input */}
+        {/* Footer */}
         <footer className="p-4 bg-white/70 dark:bg-gray-800/80 backdrop-blur border-t border-gray-300 dark:border-gray-700 flex items-center space-x-2">
           <input
             className="flex-1 p-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-black dark:text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-[#87a0c9] dark:focus:ring-lime-400"
@@ -184,30 +178,13 @@ function App() {
       </div>
 
       {/* Sidebar */}
-      <aside className="w-64 border-l border-gray-200 dark:border-gray-700 bg-[#f4f7fb] dark:bg-gray-800/80 backdrop-blur p-4 space-y-4">
-        <button
-          onClick={newChat}
-          className="w-full bg-gradient-to-r from-[#6366f1] to-[#818cf8] text-white py-2 rounded-lg hover:from-[#4f46e5] hover:to-[#6366f1] shadow"
-        >
-          + New Chat
-        </button>
-        <div className="overflow-y-auto space-y-2">
-          {sessions.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => switchChat(s.id)}
-              className={`w-full text-left px-4 py-2 rounded-lg ${
-                s.id === chatId
-                  ? 'bg-[#d6dfff] dark:bg-purple-600 text-black dark:text-white font-semibold'
-                  : 'hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-100'
-              }`}
-            >
-              {s.name}
-            </button>
-          ))}
-        </div>
-      </aside>
-    </div>
+      <Sidebar
+          sessions={sessions}
+          chatId={chatId}
+          newChat={newChat}
+          switchChat={switchChat}
+        />
+  </div>
   );
 }
 
