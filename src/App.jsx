@@ -1,4 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 
 function App() {
   const [chatId, setChatId] = useState('');
@@ -140,7 +143,14 @@ function App() {
                 <b>{m.role === 'user' ? 'You ' : 'Bot '}: </b>
                 {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>
-              <div>{m.content}</div>
+              <div className="prose dark:prose-invert max-w-none">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeRaw]}
+                >
+                  {m.content}
+                </ReactMarkdown>
+              </div>
             </div>
           ))}
           {loading && (
