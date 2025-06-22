@@ -146,6 +146,25 @@ function App() {
     }
   };
 
+  function renderWithThinking(text) {
+  const parts = text.split(/(<think>[\s\S]*?<\/think>)/g); // Split by <think> blocks
+
+    return parts.map((part, index) => {
+      if (part.startsWith('<think>') && part.endsWith('</think>')) {
+        const content = part.slice(7, -8); // Remove the <think> tags
+        return (
+          <div
+            key={index}
+            className="my-2 p-2 border-l-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-900 dark:text-yellow-200 italic text-sm"
+          >
+            💭 {content.trim()}
+          </div>
+        );
+      }
+      return <p key={index}>{part}</p>;
+    });
+} 
+
   return (
     <div className="flex h-screen bg-gradient-to-br from-[#f4f7fb] via-[#e6edf7] to-[#dce8f2] dark:from-gray-900 dark:via-gray-800 dark:to-black text-zinc-900 dark:text-white transition-colors">
       {/* Main Chat Column */}
@@ -201,9 +220,14 @@ function App() {
                     {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </div>
                   <div className="prose dark:prose-invert max-w-none">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-                      {m.content}
-                    </ReactMarkdown>
+                    {m.role === 'assistant'
+                      ? renderWithThinking(m.content)
+                      : (
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                          {m.content}
+                        </ReactMarkdown>
+                      )
+                    }
                   </div>
                 </div>
               ))}
@@ -214,9 +238,9 @@ function App() {
               )}
               <div ref={messagesEndRef}></div>
 
-              <div className="text-sm px-4 py-2 text-gray-600 dark:text-gray-300 bg-white/40 dark:bg-gray-700/40 backdrop-blur rounded-md shadow mb-2 mx-4">
+              <div className="text-xs font-mono px-4 py-2 text-gray-600 dark:text-gray-300 bg-white/40 dark:bg-gray-700/40 backdrop-blur rounded-md shadow mb-2 mx-4">
                 <p>
-                  🧮 Total Tokens: {stats.totalTokens}, ⚡ Tokens/sec: {stats.tokensPerSecond}, 🧠 Context Size: {stats.contextTokens}
+                  🤖 Model: {modelSelected},  🧮 Total Tokens: {stats.totalTokens}, ⚡ Tokens/sec: {stats.tokensPerSecond}, 🧠 Context Size: {stats.contextTokens}
                 </p>
               </div>
             </>

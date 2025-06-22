@@ -12,7 +12,7 @@ function createWindow() {
     },
   });
 
-  if (true) {
+  if (process.env.NODE_ENV === 'development') {
     win.loadURL('http://localhost:5173');
     win.webContents.openDevTools();
   } else {
