@@ -12,6 +12,11 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
   const messagesEndRef = useRef(null);
+  const [stats, setStats] = useState({
+  totalTokens: 0,
+  tokensPerSecond: 0,
+  contextTokens: 0,
+  });
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
@@ -72,10 +77,10 @@ function App() {
     // Rename session based on first user message
     if (messages.length === 0) {
       const trimmed = input.trim().slice(0, 40).replace(/\n/g, ' ');
-      if (trimmed) {
-        updateChatName(chatId, trimmed);
-      }
+      if (trimmed) updateChatName(chatId, trimmed);
     }
+
+    const start = performance.now();
 
     try {
       const res = await fetch('http://localhost:11434/api/chat', {
@@ -87,6 +92,9 @@ function App() {
           stream: false
         }),
       });
+
+      const end = performance.now();
+      const elapsedSeconds = (end - start) / 1000;
 
       const data = await res.json();
       const assistantMessage = data.message
@@ -103,8 +111,20 @@ function App() {
 
       const updatedMessages = [...newMessages, assistantMessage];
       setMessages(updatedMessages);
-
       await window.chatAPI.saveChat({ id: chatId, messages: updatedMessages });
+
+      // Estimate token counts
+      const estimateTokens = (text) => Math.round(text.split(/\s+/).length / 0.75);
+      const totalText = updatedMessages.map(m => m.content).join(' ');
+      const totalTokens = estimateTokens(totalText);
+      const responseTokens = estimateTokens(assistantMessage.content);
+      const tokensPerSecond = elapsedSeconds > 0 ? Math.round(responseTokens / elapsedSeconds) : 0;
+
+      setStats({
+        totalTokens,
+        tokensPerSecond,
+        contextTokens: estimateTokens(JSON.stringify(newMessages)),
+      });
 
     } catch (err) {
       const errorMessage = {
@@ -159,7 +179,7 @@ function App() {
               key={i}
               className={`max-w-lg px-5 py-3 rounded-2xl shadow-md transition-all duration-300 ${
                 m.role === 'user'
-                  ? 'bg-[#4f679c] text-white self-end ml-auto'
+                  ? 'bg-[#a8c3ff] text-white dark:bg-gray-600 dark:text-white self-end ml-auto'
                   : 'bg-[#e6edf7] dark:bg-slate-800 text-black dark:text-white self-start mr-auto'
               }`}
             >
@@ -180,6 +200,10 @@ function App() {
             </div>
           )}
           <div ref={messagesEndRef}></div>
+          <div className="text-sm px-4 py-2 text-gray-600 dark:text-gray-300 bg-white/40 dark:bg-gray-700/40 backdrop-blur rounded-md shadow mb-2 mx-4">
+            <div><p>🧮 Total Tokens: {stats.totalTokens}, ⚡ Tokens/sec: {stats.tokensPerSecond}, 🧠 Context Size: {stats.contextTokens}</p></div>
+
+          </div>
         </main>
 
         {/* Footer */}
