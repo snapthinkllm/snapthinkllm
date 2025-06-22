@@ -45,6 +45,12 @@ function App() {
     setMessages(data);
   };
 
+  const updateChatName = (id, newName) => {
+    setSessions(prev =>
+      prev.map(s => (s.id === id ? { ...s, name: newName } : s))
+    );
+  };
+
   const sendMessage = async () => {
     if (!input.trim()) return;
     if (!chatId) return alert('Please create or select a chat session first.');
@@ -60,21 +66,22 @@ function App() {
     setInput('');
     setLoading(true);
 
+    // Rename session based on first user message
+    if (messages.length === 0) {
+      const trimmed = input.trim().slice(0, 40).replace(/\n/g, ' ');
+      updateChatName(chatId, trimmed || chatId);
+    }
+
     try {
-      console.log('Sending messages to API:', newMessages);
       const res = await fetch('http://localhost:11434/api/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'gemma3:4b',
           messages: newMessages,
           stream: false
         }),
       });
-
-      console.log('API response status:', res.status, res);
 
       const data = await res.json();
       const assistantMessage = data.message
@@ -107,12 +114,12 @@ function App() {
   };
 
   const deleteChat = async (id) => {
-  await window.chatAPI.deleteChat(id);
-  setSessions(prev => prev.filter(s => s.id !== id));
-  if (chatId === id) {
-    setChatId('');
-    setMessages([]);
-  }
+    await window.chatAPI.deleteChat(id);
+    setSessions(prev => prev.filter(s => s.id !== id));
+    if (chatId === id) {
+      setChatId('');
+      setMessages([]);
+    }
   };
 
   return (
@@ -121,7 +128,7 @@ function App() {
       <div className="flex flex-col flex-1 h-full">
         {/* Header */}
         <header className="p-4 bg-white/80 dark:bg-gray-800/90 backdrop-blur border-b border-gray-200 dark:border-gray-700 shadow-sm flex justify-between items-center">
-          <h1 className="text-2xl font-bold tracking-tight text-[#1e4b6d] dark:text-lime-300">🧠 LLM UI</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-[#1e4b6d] dark:text-lime-300">🧠 SnapThink LLM</h1>
           <div className="space-x-2">
             <button
               onClick={() => setDarkMode(!darkMode)}
@@ -194,7 +201,7 @@ function App() {
         switchChat={switchChat}
         deleteChat={deleteChat}
       />
-  </div>
+    </div>
   );
 }
 
