@@ -42,7 +42,7 @@ export default function Sidebar({ sessions, chatId, newChat, switchChat, deleteC
                   setShowConfirm(true);
                 }}
               >
-                ❌
+                🗙
               </button>
             </div>
           ))}
