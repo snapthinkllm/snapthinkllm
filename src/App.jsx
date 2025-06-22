@@ -32,11 +32,13 @@ function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  const newChat = () => {
+  const newChat = async () => {
     const id = `chat-${Date.now()}`;
+    const defaultName = 'New Chat';
     setChatId(id);
     setMessages([]);
-    setSessions(prev => [...prev, { id, name: id }]);
+    setSessions(prev => [...prev, { id, name: defaultName }]);
+    await window.chatAPI.renameChat({ id, name: defaultName });
   };
 
   const switchChat = async (id) => {
@@ -45,10 +47,11 @@ function App() {
     setMessages(data);
   };
 
-  const updateChatName = (id, newName) => {
+  const updateChatName = async (id, newName) => {
     setSessions(prev =>
       prev.map(s => (s.id === id ? { ...s, name: newName } : s))
     );
+    await window.chatAPI.renameChat({ id, name: newName });
   };
 
   const sendMessage = async () => {
@@ -69,7 +72,9 @@ function App() {
     // Rename session based on first user message
     if (messages.length === 0) {
       const trimmed = input.trim().slice(0, 40).replace(/\n/g, ' ');
-      updateChatName(chatId, trimmed || chatId);
+      if (trimmed) {
+        updateChatName(chatId, trimmed);
+      }
     }
 
     try {
@@ -98,7 +103,9 @@ function App() {
 
       const updatedMessages = [...newMessages, assistantMessage];
       setMessages(updatedMessages);
-      window.chatAPI.saveChat({ id: chatId, messages: updatedMessages });
+
+      await window.chatAPI.saveChat({ id: chatId, messages: updatedMessages });
+
     } catch (err) {
       const errorMessage = {
         role: 'assistant',
@@ -107,7 +114,7 @@ function App() {
       };
       const updatedMessages = [...newMessages, errorMessage];
       setMessages(updatedMessages);
-      window.chatAPI.saveChat({ id: chatId, messages: updatedMessages });
+      await window.chatAPI.saveChat({ id: chatId, messages: updatedMessages });
     }
 
     setLoading(false);
@@ -152,7 +159,7 @@ function App() {
               key={i}
               className={`max-w-lg px-5 py-3 rounded-2xl shadow-md transition-all duration-300 ${
                 m.role === 'user'
-                  ? 'bg-[#87a0c9] text-white self-end ml-auto'
+                  ? 'bg-[#4f679c] text-white self-end ml-auto'
                   : 'bg-[#e6edf7] dark:bg-slate-800 text-black dark:text-white self-start mr-auto'
               }`}
             >

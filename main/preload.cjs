@@ -14,4 +14,6 @@ contextBridge.exposeInMainWorld('chatAPI', {
   showChatFolder: () => ipcRenderer.send('show-chat-folder'),
 
   deleteChat: (id) => ipcRenderer.invoke('delete-chat', id),
+
+  renameChat: ({ id, name }) => ipcRenderer.invoke('rename-chat', { id, name }),
 });
