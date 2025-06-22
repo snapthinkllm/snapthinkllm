@@ -153,26 +153,32 @@ function App() {
         {/* Header */}
         <header className="p-4 bg-white/80 dark:bg-gray-800/90 backdrop-blur border-b border-gray-200 dark:border-gray-700 shadow-sm flex justify-between items-center">
           <h1 className="text-2xl font-bold tracking-tight text-[#1e4b6d] dark:text-lime-300">🧠 SnapThink LLM</h1>
-          <div className="space-x-2">
+          <div className="flex items-center gap-2">
             <button
+              title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
               onClick={() => setDarkMode(!darkMode)}
-              className="bg-gradient-to-r from-sky-400 to-cyan-500 hover:from-sky-500 hover:to-cyan-600 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
+              className="p-2 rounded-full bg-sky-600 hover:bg-sky-700 text-white shadow transition"
             >
-              {darkMode ? '🌞 Light' : '🌙 Dark'}
+              {darkMode ? '🌞' : '🌙'}
             </button>
+
             <button
+              title="Open Chat Folder"
               onClick={() => window.chatAPI.showChatFolder()}
-              className="bg-yellow-700 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg shadow transition"
+              className="p-2 rounded-full bg-yellow-600 hover:bg-yellow-700 text-white shadow transition"
             >
-              📂 Show Chat Folder
+              📁
             </button>
+
             <button
+              title="Change Model"
               onClick={() => setModelSelected(null)}
-              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow transition"
+              className="p-2 rounded-full bg-red-600 hover:bg-red-700 text-white shadow transition"
             >
-              🔁 Change Model
+              🔄
             </button>
           </div>
+
         </header>
 
         {/* Main Content */}
