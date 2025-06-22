@@ -149,21 +149,33 @@ function App() {
   function renderWithThinking(text) {
   const parts = text.split(/(<think>[\s\S]*?<\/think>)/g); // Split by <think> blocks
 
-    return parts.map((part, index) => {
-      if (part.startsWith('<think>') && part.endsWith('</think>')) {
-        const content = part.slice(7, -8); // Remove the <think> tags
-        return (
-          <div
-            key={index}
-            className="my-2 p-2 border-l-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-900 dark:text-yellow-200 italic text-sm"
-          >
-            💭 {content.trim()}
-          </div>
-        );
-      }
-      return <p key={index}>{part}</p>;
-    });
-} 
+  return parts.map((part, index) => {
+    if (part.startsWith('<think>') && part.endsWith('</think>')) {
+      const content = part.slice(7, -8); // Remove <think> tags
+      return (
+        <div
+          key={index}
+          className="my-2 p-2 border-l-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-900 dark:text-yellow-200 italic text-sm rounded"
+        >
+          💭 <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+            {content.trim()}
+          </ReactMarkdown>
+        </div>
+      );
+    }
+    // Render other parts with markdown too
+    return (
+      <ReactMarkdown
+        key={index}
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw]}
+        className="mb-2"
+      >
+        {part}
+      </ReactMarkdown>
+    );
+  });
+}
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-[#f4f7fb] via-[#e6edf7] to-[#dce8f2] dark:from-gray-900 dark:via-gray-800 dark:to-black text-zinc-900 dark:text-white transition-colors">
@@ -238,10 +250,15 @@ function App() {
               )}
               <div ref={messagesEndRef}></div>
 
-              <div className="text-xs font-mono px-4 py-2 text-gray-600 dark:text-gray-300 bg-white/40 dark:bg-gray-700/40 backdrop-blur rounded-md shadow mb-2 mx-4">
-                <p>
-                  🤖 Model: {modelSelected},  🧮 Total Tokens: {stats.totalTokens}, ⚡ Tokens/sec: {stats.tokensPerSecond}, 🧠 Context Size: {stats.contextTokens}
-                </p>
+              <div className="flex justify-center mt-2">
+                <div className="inline-block text-xs font-mono px-4 py-2 text-gray-700 dark:text-gray-300 bg-white/40 dark:bg-gray-700/40 backdrop-blur rounded-md shadow">
+                  <p className="whitespace-pre-wrap text-center">
+                    🤖 Model: <span className="font-semibold">{modelSelected}</span> |
+                    🧮 Tokens: <span className="font-semibold">{stats.totalTokens}</span> |
+                    ⚡ Speed: <span className="font-semibold">{stats.tokensPerSecond}/s</span> |
+                    🧠 Context: <span className="font-semibold">{stats.contextTokens}</span>
+                  </p>
+                </div>
               </div>
             </>
           )}
