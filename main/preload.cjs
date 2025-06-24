@@ -22,4 +22,9 @@ contextBridge.exposeInMainWorld('chatAPI', {
   cancelDownload: () => ipcRenderer.send('cancel-download'), 
 
   onModelStatus: (callback) => ipcRenderer.on('model-status', (_, msg) => callback(msg)),
+
+  exportChat: (id) => ipcRenderer.invoke('export-chat', id),
+  
+  importChat: () => ipcRenderer.invoke('import-chat'),
+
 });

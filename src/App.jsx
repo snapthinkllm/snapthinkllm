@@ -147,6 +147,21 @@ function App() {
     }
   };
 
+    // Export current chat
+  const handleExport = async () => {
+    if (!chatId) return;
+    await window.chatAPI.exportChat(chatId);
+  };
+
+
+  // Import a chat
+  const handleImport = async () => {
+    const result = await window.chatAPI.importChat();
+    if (result) {
+      setSessions(prev => [...prev, result]);
+      setChatId(result.id);
+    }
+  };
   function renderWithThinking(text) {
     if (typeof text !== 'string') return null;
 
@@ -187,14 +202,16 @@ function App() {
     <div className="flex h-screen bg-gradient-to-br from-[#f4f7fb] via-[#e6edf7] to-[#dce8f2] dark:from-gray-900 dark:via-gray-800 dark:to-black text-zinc-900 dark:text-white transition-colors">
       {/* Main Chat Column */}
       <div className="flex flex-col flex-1 h-full">
-        {/* Header */}
+      {/* Header */}
         <header className="p-4 bg-white/80 dark:bg-gray-800/90 backdrop-blur border-b border-gray-200 dark:border-gray-700 shadow-sm flex justify-between items-center">
-          <h1 className="text-2xl font-bold tracking-tight text-[#1e4b6d] dark:text-lime-300">🧠 SnapThink LLM</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-[#1e4b6d] dark:text-lime-300">
+            🧠 SnapThink LLM
+          </h1>
           <div className="flex items-center gap-2">
             <button
               title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
               onClick={() => setDarkMode(!darkMode)}
-              className="p-2 rounded-full bg-sky-600 hover:bg-sky-700 text-white shadow transition"
+              className="p-1 rounded-full bg-stone-300 hover:bg-slate-600 text-white shadow transition"
             >
               {darkMode ? '🌞' : '🌙'}
             </button>
@@ -202,20 +219,35 @@ function App() {
             <button
               title="Open Chat Folder"
               onClick={() => window.chatAPI.showChatFolder()}
-              className="p-2 rounded-full bg-yellow-600 hover:bg-yellow-700 text-white shadow transition"
+              className="p-1 rounded-full bg-yellow-600 hover:bg-yellow-700 text-white shadow transition"
             >
               📁
             </button>
 
             <button
+              title="Export Current Chat"
+              onClick={handleExport}
+              className="p-1 rounded-full bg-green-600 hover:bg-green-700 text-white shadow transition"
+            >
+              📤
+            </button>
+
+            <button
+              title="Import Chat"
+              onClick={handleImport}
+              className="p-1 rounded-full bg-purple-600 hover:bg-purple-700 text-white shadow transition"
+            >
+              📥
+            </button>
+
+            <button
               title="Change Model"
               onClick={() => setModelSelected(null)}
-              className="p-2 rounded-full bg-red-600 hover:bg-red-700 text-white shadow transition"
+              className="p-1 rounded-full bg-red-600 hover:bg-red-700 text-white shadow transition"
             >
               🔄
             </button>
           </div>
-
         </header>
 
         {/* Main Content */}
