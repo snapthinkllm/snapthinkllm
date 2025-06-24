@@ -175,6 +175,48 @@ ipcMain.on('cancel-download', () => {
   }
 });
 
+const { dialog } = require('electron');
+
+ipcMain.handle('export-chat', async (event, chatId) => {
+  const filePath = path.join(chatsDir, `${chatId}.json`);
+  if (!fs.existsSync(filePath)) return;
+
+  const data = fs.readFileSync(filePath);
+  const { canceled, filePath: exportPath } = await dialog.showSaveDialog({
+    defaultPath: `${chatId}.json`,
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+  });
+
+  if (!canceled && exportPath) {
+    fs.writeFileSync(exportPath, data);
+    return { success: true };
+  }
+  return { success: false };
+});
+
+
+ipcMain.handle('import-chat', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+    properties: ['openFile'],
+  });
+
+  if (canceled || filePaths.length === 0) return;
+
+  const fileData = fs.readFileSync(filePaths[0]);
+  const parsed = JSON.parse(fileData);
+
+  const id = `import-${Date.now()}`;
+  const filePath = path.join(chatsDir, `${id}.json`);
+  fs.writeFileSync(filePath, JSON.stringify(parsed, null, 2));
+
+  const manifest = loadManifest();
+  manifest[id] = parsed[0]?.content?.slice(0, 30) || 'Imported Chat';
+  saveManifest(manifest);
+
+  return { id, name: manifest[id] };
+});
+
 // -------------------- App Lifecycle --------------------
 app.whenReady().then(() => {
   createWindow();
