@@ -217,6 +217,20 @@ ipcMain.handle('import-chat', async () => {
   return { id, name: manifest[id] };
 });
 
+// --------------------App -1 long document summarization --------------------
+  const pdfParse = require('pdf-parse');
+
+  ipcMain.handle('parse-pdf', async (event, binaryData) => {
+    try {
+      const buffer = Buffer.from(binaryData); // Handles Uint8Array correctly
+      const pdfData = await pdfParse(buffer);
+      return { text: pdfData.text };
+    } catch (err) {
+      console.error('Error parsing PDF:', err);
+      return { error: 'Failed to parse PDF' };
+    }
+  });
+
 // -------------------- App Lifecycle --------------------
 app.whenReady().then(() => {
   createWindow();

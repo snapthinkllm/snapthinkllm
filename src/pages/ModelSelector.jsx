@@ -91,42 +91,6 @@ function ModelSelector({ onSelect }) {
         </label>
       </div>
 
-      {/* Add custom model */}
-      <div className="space-y-2">
-        <label className="block font-medium">Add custom model name (Ollama)</label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={customModel}
-            onChange={(e) => setCustomModel(e.target.value)}
-            placeholder="e.g. mistral:7b-instruct"
-            className="flex-1 px-3 py-2 border border-gray-400 rounded bg-white dark:bg-gray-800"
-          />
-          <button
-            onClick={handleAddModel}
-            disabled={!!downloading}
-            className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-          >
-            {downloading ? 'Downloading...' : 'Pull'}
-          </button>
-        </div>
-
-        {/* Download progress modal */}
-        {downloading && (
-          <DownloadProgressModal
-            modelName={downloading}
-            status={status}
-            progress={progress}
-            onCancel={handleCancelDownload}
-            onDone={() => {
-              setDownloading(null);
-              setStatus(null);
-              setProgress(null);
-            }}
-          />
-        )}
-      </div>
-
       {/* Model cards */}
       {Object.entries(groupedModels).map(([company, models]) => (
         <div key={company}>
@@ -174,6 +138,43 @@ function ModelSelector({ onSelect }) {
           </div>
         </div>
       ))}
+
+      {/* Add custom model */}
+      <div className="space-y-2">
+        <label className="block font-medium">Add custom model name (Ollama)</label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={customModel}
+            onChange={(e) => setCustomModel(e.target.value)}
+            placeholder="e.g. mistral:7b-instruct"
+            className="flex-1 px-3 py-2 border border-gray-400 rounded bg-white dark:bg-gray-800"
+          />
+          <button
+            onClick={handleAddModel}
+            disabled={!!downloading}
+            className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+          >
+            {downloading ? 'Downloading...' : 'Pull'}
+          </button>
+        </div>
+
+        {/* Download progress modal */}
+        {downloading && (
+          <DownloadProgressModal
+            modelName={downloading}
+            status={status}
+            progress={progress}
+            onCancel={handleCancelDownload}
+            onDone={() => {
+              setDownloading(null);
+              setStatus(null);
+              setProgress(null);
+            }}
+          />
+        )}
+      </div>
+
     </div>
   );
 }

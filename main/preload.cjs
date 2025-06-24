@@ -27,4 +27,6 @@ contextBridge.exposeInMainWorld('chatAPI', {
   
   importChat: () => ipcRenderer.invoke('import-chat'),
 
+  parsePDF: (binaryData) => ipcRenderer.invoke('parse-pdf', binaryData),
+
 });

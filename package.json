@@ -19,6 +19,7 @@
     "@tailwindcss/vite": "^4.1.10",
     "cross-env": "^7.0.3",
     "electron-squirrel-startup": "^1.0.1",
+    "pdf-parse": "^1.1.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",
