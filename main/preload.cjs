@@ -16,4 +16,10 @@ contextBridge.exposeInMainWorld('chatAPI', {
   deleteChat: (id) => ipcRenderer.invoke('delete-chat', id),
 
   renameChat: ({ id, name }) => ipcRenderer.invoke('rename-chat', { id, name }),
+
+  downloadModel: (name) => ipcRenderer.invoke('download-model', name),
+
+  cancelDownload: () => ipcRenderer.send('cancel-download'), 
+
+  onModelStatus: (callback) => ipcRenderer.on('model-status', (_, msg) => callback(msg)),
 });

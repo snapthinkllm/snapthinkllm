@@ -1,8 +1,9 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { Console } = require('console');
+const { spawn } = require('child_process');
 
+// -------------------- Create window --------------------
 function createWindow() {
   const win = new BrowserWindow({
     width: 1000,
@@ -20,19 +21,13 @@ function createWindow() {
   }
 }
 
-// 📁 Chat directory and manifest
+// -------------------- Chat directory setup --------------------
 const chatsDir = path.join(app.getPath('userData'), 'chats');
 const manifestFile = path.join(chatsDir, 'chats.json');
-console.log('Chat directory:', chatsDir);
-console.log('Manifest file:', manifestFile);
 
-if (!fs.existsSync(chatsDir)) {
-  fs.mkdirSync(chatsDir);
-}
+if (!fs.existsSync(chatsDir)) fs.mkdirSync(chatsDir);
 
 function loadManifest() {
-  console.log('Chat directory:', chatsDir);
-  console.log('Manifest file:', manifestFile);
   try {
     if (fs.existsSync(manifestFile)) {
       return JSON.parse(fs.readFileSync(manifestFile));
@@ -44,8 +39,6 @@ function loadManifest() {
 }
 
 function saveManifest(data) {
-  console.log('Chat directory:', chatsDir);
-  console.log('Manifest file:', manifestFile);
   try {
     fs.writeFileSync(manifestFile, JSON.stringify(data, null, 2));
   } catch (e) {
@@ -53,23 +46,20 @@ function saveManifest(data) {
   }
 }
 
-// 💾 Save chat messages
+// -------------------- IPC Chat handlers --------------------
 ipcMain.on('save-chat', (e, { id, messages }) => {
   try {
-    const filePath = path.join(chatsDir, `${id}.json`);
-    fs.writeFileSync(filePath, JSON.stringify(messages, null, 2));
+    fs.writeFileSync(path.join(chatsDir, `${id}.json`), JSON.stringify(messages, null, 2));
   } catch (err) {
     console.error(`Error saving chat (${id}):`, err);
   }
 });
 
-// 📖 Load messages
 ipcMain.handle('load-chat', (e, id) => {
   try {
     const filePath = path.join(chatsDir, `${id}.json`);
     if (fs.existsSync(filePath)) {
-      const data = fs.readFileSync(filePath);
-      return JSON.parse(data);
+      return JSON.parse(fs.readFileSync(filePath));
     }
     return [];
   } catch (e) {
@@ -78,7 +68,6 @@ ipcMain.handle('load-chat', (e, id) => {
   }
 });
 
-// 📋 List all sessions (load names from manifest)
 ipcMain.handle('list-chats', () => {
   try {
     const files = fs.readdirSync(chatsDir).filter(f => f.endsWith('.json') && f !== 'chats.json');
@@ -91,16 +80,14 @@ ipcMain.handle('list-chats', () => {
       };
     });
   } catch (e) {
-    console.error('Error listing chat sessions:', e);
+    console.error('Error listing chats:', e);
     return [];
   }
 });
 
-// 📝 Rename chat session
-ipcMain.handle('rename-chat', async (event, { id, name }) => {
+ipcMain.handle('rename-chat', (event, { id, name }) => {
   try {
     const manifest = loadManifest();
-    console.log(`Renaming chat (${id}) to "${name}"`);
     manifest[id] = name;
     saveManifest(manifest);
     return { success: true };
@@ -110,20 +97,17 @@ ipcMain.handle('rename-chat', async (event, { id, name }) => {
   }
 });
 
-// 📂 Show folder in file explorer
 ipcMain.on('show-chat-folder', () => {
   shell.openPath(chatsDir);
 });
 
-// 🗑️ Delete a session
-ipcMain.handle('delete-chat', async (event, chatId) => {
+ipcMain.handle('delete-chat', (event, chatId) => {
   try {
     const filePath = path.join(chatsDir, `${chatId}.json`);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
 
-    // Also remove from manifest
     const manifest = loadManifest();
     delete manifest[chatId];
     saveManifest(manifest);
@@ -135,7 +119,63 @@ ipcMain.handle('delete-chat', async (event, chatId) => {
   }
 });
 
-// App lifecycle
+// -------------------- Model Download --------------------
+let currentPullProcess = null;
+
+ipcMain.handle('download-model', (event, model) => {
+  return new Promise((resolve, reject) => {
+    currentPullProcess = spawn('ollama', ['pull', model]);
+
+    currentPullProcess.stdout.on('data', (data) => {
+      const message = data.toString().trim();
+      console.log(`[ollama stdout] ${message}`);
+
+      const percentMatch = message.match(/(\d+(\.\d+)?)%/);
+      const progress = percentMatch ? parseFloat(percentMatch[1]) : null;
+
+      event.sender.send('model-status', {
+        model,
+        status: 'downloading',
+        detail: message,
+        progress,
+      });
+    });
+
+    currentPullProcess.stderr.on('data', (data) => {
+      const message = data.toString().trim();
+      console.warn(`[ollama stderr] ${message}`);
+      // ⚠️ Don't treat as error — pass along as additional info
+      event.sender.send('model-status', {
+        model,
+        status: 'downloading',
+        detail: message,
+      });
+    });
+
+    currentPullProcess.on('close', (code) => {
+      currentPullProcess = null;
+      if (code === 0) {
+        console.log(`[ollama] ${model} download complete`);
+        event.sender.send('model-status', { model, status: 'done' });
+        resolve();
+      } else {
+        console.error(`[ollama] Download failed with code ${code}`);
+        event.sender.send('model-status', { model, status: 'error' });
+        reject(new Error(`ollama pull exited with code ${code}`));
+      }
+    });
+  });
+});
+
+ipcMain.on('cancel-download', () => {
+  if (currentPullProcess) {
+    currentPullProcess.kill();
+    currentPullProcess = null;
+    console.log('Download cancelled.');
+  }
+});
+
+// -------------------- App Lifecycle --------------------
 app.whenReady().then(() => {
   createWindow();
 

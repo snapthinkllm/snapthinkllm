@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import Sidebar from './ui-elements/Sidebar';
 import ModelSelector from './pages/ModelSelector';
+import ErrorBoundary from './ui-elements/ErrorBoundary';
 
 function App() {
   const [chatId, setChatId] = useState('');
@@ -147,35 +148,40 @@ function App() {
   };
 
   function renderWithThinking(text) {
-  const parts = text.split(/(<think>[\s\S]*?<\/think>)/g); // Split by <think> blocks
+    if (typeof text !== 'string') return null;
 
-  return parts.map((part, index) => {
-    if (part.startsWith('<think>') && part.endsWith('</think>')) {
-      const content = part.slice(7, -8); // Remove <think> tags
+    const parts = text.split(/(<think>[\s\S]*?<\/think>)/g);
+
+    return parts.map((part, index) => {
+      const trimmed = part.trim();
+
+      if (trimmed.startsWith('<think>') && trimmed.endsWith('</think>')) {
+        const content = trimmed.slice(7, -8).trim(); // Remove <think> tags
+        return (
+          <div
+            key={`think-${index}`}
+            className="my-2 p-2 border-l-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-900 dark:text-yellow-200 italic text-sm rounded"
+          >
+            💭
+            <div className="prose dark:prose-invert max-w-none">
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                {content}
+              </ReactMarkdown>
+            </div>
+          </div>
+        );
+      }
+
       return (
-        <div
-          key={index}
-          className="my-2 p-2 border-l-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-900 dark:text-yellow-200 italic text-sm rounded"
-        >
-          💭 <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-            {content.trim()}
+        <div key={`text-${index}`} className="prose dark:prose-invert max-w-none mb-2">
+          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+            {part}
           </ReactMarkdown>
         </div>
       );
-    }
-    // Render other parts with markdown too
-    return (
-      <ReactMarkdown
-        key={index}
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw]}
-        className="mb-2"
-      >
-        {part}
-      </ReactMarkdown>
-    );
-  });
-}
+    });
+  }
+
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-[#f4f7fb] via-[#e6edf7] to-[#dce8f2] dark:from-gray-900 dark:via-gray-800 dark:to-black text-zinc-900 dark:text-white transition-colors">
