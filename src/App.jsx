@@ -4,7 +4,8 @@ import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import Sidebar from './ui-elements/Sidebar';
 import ModelSelector from './pages/ModelSelector';
-import ErrorBoundary from './ui-elements/ErrorBoundary';
+import ChatHeader from './ui-elements/ChatHeader';
+import ChatFooter from './ui-elements/ChatFooter';
 
 function App() {
   const [chatId, setChatId] = useState('');
@@ -262,156 +263,78 @@ const handleDocumentUpload = async (e) => {
     <div className="flex h-screen bg-gradient-to-br from-[#f4f7fb] via-[#e6edf7] to-[#dce8f2] dark:from-gray-900 dark:via-gray-800 dark:to-black text-zinc-900 dark:text-white transition-colors">
       {/* Main Chat Column */}
       <div className="flex flex-col flex-1 h-full">
+
       {/* Header */}
-        <header className="p-4 bg-white/80 dark:bg-gray-800/90 backdrop-blur border-b border-gray-200 dark:border-gray-700 shadow-sm flex justify-between items-center">
-          <h1 className="text-2xl font-bold tracking-tight text-[#1e4b6d] dark:text-lime-300">
-            🧠 SnapThink LLM
-          </h1>
-          <div className="flex items-center gap-2">
-            <button
-              title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-              onClick={() => setDarkMode(!darkMode)}
-              className="p-1 rounded-full bg-stone-300 hover:bg-slate-600 text-white shadow transition"
-            >
-              {darkMode ? '🌞' : '🌙'}
-            </button>
-
-            <button
-              title="Open Chat Folder"
-              onClick={() => window.chatAPI.showChatFolder()}
-              className="p-1 rounded-full bg-yellow-600 hover:bg-yellow-700 text-white shadow transition"
-            >
-              📁
-            </button>
-
-            <button
-              title="Export Current Chat"
-              onClick={handleExport}
-              className="p-1 rounded-full bg-green-600 hover:bg-green-700 text-white shadow transition"
-            >
-              📤
-            </button>
-
-            <button
-              title="Import Chat"
-              onClick={handleImport}
-              className="p-1 rounded-full bg-purple-600 hover:bg-purple-700 text-white shadow transition"
-            >
-              📥
-            </button>
-
-            <button
-              title="Change Model"
-              onClick={() => setModelSelected(null)}
-              className="p-1 rounded-full bg-red-600 hover:bg-red-700 text-white shadow transition"
-            >
-              🔄
-            </button>
-          </div>
-        </header>
+        <ChatHeader
+          darkMode={darkMode}
+          setDarkMode={setDarkMode}
+          handleExport={handleExport}
+          handleImport={handleImport}
+          setModelSelected={setModelSelected}
+        />
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-6 space-y-4">
-        {!modelSelected ? (
-          <ModelSelector onSelect={setModelSelected} />
-        ) : (
-          <>
-            {messages.map((m, i) => (
-              <div
-                key={i}
-                className={`max-w-lg px-5 py-3 rounded-2xl shadow-md transition-all duration-300 ${
-                  m.role === 'user'
-                    ? 'bg-[#a2bdf7] text-slate-900 dark:bg-gray-600 dark:text-white self-end ml-auto'
-                    : 'bg-[#dfe2e8] dark:bg-slate-800 text-black dark:text-white self-start mr-auto'
-                }`}
-              >
-                <div className="text-xs opacity-60 mb-1">
-                  <b>{m.role === 'user' ? 'You' : 'Bot'}:</b>{' '}
-                  {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        <main className="flex-1 overflow-y-auto p-6 space-y-4">
+          {!modelSelected ? (
+            <ModelSelector onSelect={setModelSelected} />
+          ) : (
+            <>
+              {messages.map((m, i) => (
+                <div
+                  key={i}
+                  className={`max-w-lg px-5 py-3 rounded-2xl shadow-md transition-all duration-300 ${
+                    m.role === 'user'
+                      ? 'bg-[#a2bdf7] text-slate-900 dark:bg-gray-600 dark:text-white self-end ml-auto'
+                      : 'bg-[#dfe2e8] dark:bg-slate-800 text-black dark:text-white self-start mr-auto'
+                  }`}
+                >
+                  <div className="text-xs opacity-60 mb-1">
+                    <b>{m.role === 'user' ? 'You' : 'Bot'}:</b>{' '}
+                    {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                  <div className="prose dark:prose-invert max-w-none">
+                    {m.role === 'assistant'
+                      ? renderWithThinking(m.content)
+                      : (
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                          {m.content}
+                        </ReactMarkdown>
+                      )
+                    }
+                  </div>
                 </div>
-                <div className="prose dark:prose-invert max-w-none">
-                  {m.role === 'assistant'
-                    ? renderWithThinking(m.content)
-                    : (
-                      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-                        {m.content}
-                      </ReactMarkdown>
-                    )
-                  }
+              ))}
+              {loading && (
+                <div className="max-w-lg px-5 py-3 rounded-2xl bg-[#e6edf7] dark:bg-gray-700/60 text-black dark:text-white self-start mr-auto shadow-md">
+                  <b>assistant:</b> Typing...
                 </div>
-              </div>
-            ))}
-            {loading && (
-              <div className="max-w-lg px-5 py-3 rounded-2xl bg-[#e6edf7] dark:bg-gray-700/60 text-black dark:text-white self-start mr-auto shadow-md">
-                <b>assistant:</b> Typing...
-              </div>
-            )}
-            <div ref={messagesEndRef}></div>
+              )}
+              <div ref={messagesEndRef}></div>
 
-            <div className="flex justify-center mt-2">
-              <div className="inline-block text-xs font-mono px-4 py-2 text-gray-700 dark:text-gray-300 bg-white/40 dark:bg-gray-700/40 backdrop-blur rounded-md shadow">
-                <p className="whitespace-pre-wrap text-center">
-                  🤖 Model: <span className="font-semibold">{modelSelected}</span> |
-                  🧮 Tokens: <span className="font-semibold">{stats.totalTokens}</span> |
-                  ⚡ Speed: <span className="font-semibold">{stats.tokensPerSecond}/s</span> |
-                  🧠 Context: <span className="font-semibold">{stats.contextTokens}</span>
-                </p>
+              <div className="flex justify-center mt-2">
+                <div className="inline-block text-xs font-mono px-4 py-2 text-gray-700 dark:text-gray-300 bg-white/40 dark:bg-gray-700/40 backdrop-blur rounded-md shadow">
+                  <p className="whitespace-pre-wrap text-center">
+                    🤖 Model: <span className="font-semibold">{modelSelected}</span> |
+                    🧮 Tokens: <span className="font-semibold">{stats.totalTokens}</span> |
+                    ⚡ Speed: <span className="font-semibold">{stats.tokensPerSecond}/s</span> |
+                    🧠 Context: <span className="font-semibold">{stats.contextTokens}</span>
+                  </p>
+                </div>
               </div>
-            </div>
-          </>
-        )}
-      </main>
+            </>
+          )}
+        </main>
 
       {/* Footer */}
-      {modelSelected && (
-        <footer className="p-4 bg-white/70 dark:bg-gray-800/80 backdrop-blur border-t border-gray-300 dark:border-gray-700">
-          {/* Action buttons row above input */}
-          <div className="flex justify-start mb-2 gap-4 text-sm">
-            <label
-              htmlFor="pdf-upload"
-              className={`px-3 py-1 rounded-full transition-all
-                ${
-                  chatId
-                    ? 'bg-gray-700 dark:bg-gray-700 text-stone-100 dark:text-stone-100 hover:bg-gray-200 dark:hover:bg-gray-600 cursor-pointer'
-                    : 'bg-gray-200 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
-                }`}
-            >
-              📄 Summarize PDF,markdown,txt
-            </label>
-            <input
-              type="file"
-              id="pdf-upload"
-              accept=".pdf,.txt,.md"
-              onChange={handleDocumentUpload}
-              className="hidden"
-              disabled={!chatId}
-            />
-          </div>
-
-          {/* Input and Send button */}
-          <div className="flex items-center space-x-2">
-            <input
-              className="flex-1 p-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-black dark:text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-[#87a0c9] dark:focus:ring-lime-400"
-              placeholder="Type a message..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-              disabled={!chatId}
-            />
-            <button
-              onClick={sendMessage}
-              className={`px-5 py-2 rounded-xl shadow-md transition duration-300 ${
-                chatId
-                  ? 'bg-gradient-to-r from-[#0ea5e9] to-[#6366f1] hover:from-[#0284c7] hover:to-[#4f46e5] text-white'
-                  : 'bg-gray-400 text-white cursor-not-allowed'
-              }`}
-              disabled={!chatId}
-            >
-              Send
-            </button>
-          </div>
-        </footer>
-      )}
+        {modelSelected && (
+          <ChatFooter
+            chatId={chatId}
+            input={input}
+            setInput={setInput}
+            sendMessage={sendMessage}
+            handleDocumentUpload={handleDocumentUpload}
+          />
+        )}
       </div>
 
       {/* Sidebar */}
