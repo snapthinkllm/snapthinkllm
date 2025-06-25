@@ -6,6 +6,8 @@ import Sidebar from './ui-elements/Sidebar';
 import ModelSelector from './pages/ModelSelector';
 import ChatHeader from './ui-elements/ChatHeader';
 import ChatFooter from './ui-elements/ChatFooter';
+import { chunkText } from './utils/chunkText';
+
 
 function App() {
   const [chatId, setChatId] = useState('');
@@ -178,7 +180,6 @@ function App() {
     try {
       let text = '';
 
-      // Convert file to Uint8Array for binary IPC transfer
       const arrayBuffer = await file.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
 
@@ -192,20 +193,21 @@ function App() {
       } else if (ext === 'txt' || ext === 'md') {
         text = new TextDecoder().decode(uint8Array);
       } else {
-        alert('Unsupported file type. Please upload a PDF, TXT, or Markdown file.');
+        alert('❌ Unsupported file type. Please upload PDF, TXT, or Markdown.');
         return;
       }
 
-      const chunks = text.match(/[\s\S]{1,1000}(?:\n|$)/g) || []; // simple chunker
-      setDocumentChunks(chunks);
-      setRagMode(true);
-      console.log("📄 Document chunks created:", chunks.length);
-
-
+      // ✅ Show preview
       console.log(`✅ Parsed ${ext.toUpperCase()} Text Length:`, text.length);
       console.log('📄 Preview:\n', text.trim().slice(0, 500));
 
-      // Compose final summarization prompt
+      // ✅ Create chunks for RAG
+      const chunks = chunkText(text, 300, 50);
+      setDocumentChunks(chunks);
+      setRagMode(true);
+      console.log('📄 Document chunks created:', chunks.length);
+
+      // ✅ Compose summarization prompt
       const fullPrompt = `📄 Summarize the uploaded ${ext.toUpperCase()} content below.${
         ext === 'pdf'
           ? ' The content may include tables flattened into plain text. Try to infer tabular structure from spacing.'
@@ -222,12 +224,17 @@ function App() {
       setMessages(newMessages);
       await window.chatAPI.saveChat({ id: chatId, messages: newMessages });
 
+      // ✅ Trigger LLM summarization
       sendMessage(fullPrompt);
+
+      // Optional confirmation
+      alert(`✅ Document uploaded. Summarization + RAG chunks (${chunks.length}) ready.`);
     } catch (err) {
       console.error('❌ Document upload error:', err);
       alert('Failed to parse or upload the document. Please try another file.');
     }
   };
+
   const sendRAGQuestion = async (question) => {
     if (!question.trim()) return;
 
