@@ -2,8 +2,10 @@
 export default function ChatFooter({
   chatId,
   input,
+  ragMode,
   setInput,
   sendMessage,
+  sendRAGQuestion,
   handleDocumentUpload,
 }) {
   return (
@@ -20,6 +22,14 @@ export default function ChatFooter({
         >
           📄 Summarize PDF, markdown, txt
         </label>
+        {ragMode && (
+            <button
+                onClick={() => sendRAGQuestion(input)}
+                className="px-4 py-1 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm shadow"
+            >
+                🧠 Ask Document
+            </button>
+            )}
         <input
           type="file"
           id="document-upload"

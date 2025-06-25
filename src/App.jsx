@@ -21,13 +21,15 @@ function App() {
     contextTokens: 0,
   });
   const messagesEndRef = useRef(null);
+  const [ragMode, setRagMode] = useState(false); // RAG mode toggle
+  const [documentChunks, setDocumentChunks] = useState([]); // store parsed & chunked text
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
     localStorage.setItem('theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
 
-  useEffect(() => {
+  useEffect(() => {  
     window.chatAPI.listChats().then(setSessions);
   }, []);
 
@@ -167,60 +169,76 @@ function App() {
   };
 
 
-const handleDocumentUpload = async (e) => {
-  const file = e.target.files[0];
-  if (!file || !chatId) return;
+  const handleDocumentUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !chatId) return;
 
-  const ext = file.name.split('.').pop().toLowerCase();
+    const ext = file.name.split('.').pop().toLowerCase();
 
-  try {
-    let text = '';
+    try {
+      let text = '';
 
-    // Convert file to Uint8Array for binary IPC transfer
-    const arrayBuffer = await file.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
+      // Convert file to Uint8Array for binary IPC transfer
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
 
-    if (ext === 'pdf') {
-      console.log('Sending PDF binary data to main process:', uint8Array.length);
-      const result = await window.chatAPI.parsePDF(uint8Array);
-      if (result.error || !result.text?.trim()) {
-        throw new Error(result.error || 'No text returned from PDF');
+      if (ext === 'pdf') {
+        console.log('Sending PDF binary data to main process:', uint8Array.length);
+        const result = await window.chatAPI.parsePDF(uint8Array);
+        if (result.error || !result.text?.trim()) {
+          throw new Error(result.error || 'No text returned from PDF');
+        }
+        text = result.text;
+      } else if (ext === 'txt' || ext === 'md') {
+        text = new TextDecoder().decode(uint8Array);
+      } else {
+        alert('Unsupported file type. Please upload a PDF, TXT, or Markdown file.');
+        return;
       }
-      text = result.text;
-    } else if (ext === 'txt' || ext === 'md') {
-      text = new TextDecoder().decode(uint8Array);
-    } else {
-      alert('Unsupported file type. Please upload a PDF, TXT, or Markdown file.');
-      return;
+
+      const chunks = text.match(/[\s\S]{1,1000}(?:\n|$)/g) || []; // simple chunker
+      setDocumentChunks(chunks);
+      setRagMode(true);
+      console.log("📄 Document chunks created:", chunks.length);
+
+
+      console.log(`✅ Parsed ${ext.toUpperCase()} Text Length:`, text.length);
+      console.log('📄 Preview:\n', text.trim().slice(0, 500));
+
+      // Compose final summarization prompt
+      const fullPrompt = `📄 Summarize the uploaded ${ext.toUpperCase()} content below.${
+        ext === 'pdf'
+          ? ' The content may include tables flattened into plain text. Try to infer tabular structure from spacing.'
+          : ''
+      }\n\n${text}`;
+
+      const userMessage = {
+        role: 'user',
+        content: fullPrompt,
+        timestamp: new Date().toISOString(),
+      };
+
+      const newMessages = [...messages, userMessage];
+      setMessages(newMessages);
+      await window.chatAPI.saveChat({ id: chatId, messages: newMessages });
+
+      sendMessage(fullPrompt);
+    } catch (err) {
+      console.error('❌ Document upload error:', err);
+      alert('Failed to parse or upload the document. Please try another file.');
     }
+  };
+  const sendRAGQuestion = async (question) => {
+    if (!question.trim()) return;
 
-    console.log(`✅ Parsed ${ext.toUpperCase()} Text Length:`, text.length);
-    console.log('📄 Preview:\n', text.trim().slice(0, 500));
+    // Mock: combine top N chunks
+    const context = documentChunks.slice(0, 3).join('\n---\n');
 
-    // Compose final summarization prompt
-    const fullPrompt = `📄 Summarize the uploaded ${ext.toUpperCase()} content below.${
-      ext === 'pdf'
-        ? ' The content may include tables flattened into plain text. Try to infer tabular structure from spacing.'
-        : ''
-    }\n\n${text}`;
+    const prompt = `You are a helpful assistant. Use the following context to answer the question:\n\n${context}\n\nQuestion: ${question}`;
 
-    const userMessage = {
-      role: 'user',
-      content: fullPrompt,
-      timestamp: new Date().toISOString(),
-    };
-
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
-    await window.chatAPI.saveChat({ id: chatId, messages: newMessages });
-
-    sendMessage(fullPrompt);
-  } catch (err) {
-    console.error('❌ Document upload error:', err);
-    alert('Failed to parse or upload the document. Please try another file.');
-  }
-};
-
+    setInput('');
+    sendMessage(prompt); // reuse existing sendMessage logic
+  };
 
 
   function renderWithThinking(text) {
@@ -330,8 +348,10 @@ const handleDocumentUpload = async (e) => {
           <ChatFooter
             chatId={chatId}
             input={input}
+            ragMode={ragMode}
             setInput={setInput}
             sendMessage={sendMessage}
+            sendRAGQuestion={sendRAGQuestion}
             handleDocumentUpload={handleDocumentUpload}
           />
         )}
