@@ -166,51 +166,59 @@ function App() {
   };
 
 
-  const handlePDFUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file || !chatId) return;
+const handleDocumentUpload = async (e) => {
+  const file = e.target.files[0];
+  if (!file || !chatId) return;
 
-    try {
-      // Convert file to Uint8Array for binary IPC transfer
-      const arrayBuffer = await file.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      console.log('Sending binaryData to main process:', uint8Array.length);
+  const ext = file.name.split('.').pop().toLowerCase();
 
-      const { text, error } = await window.chatAPI.parsePDF(uint8Array);
+  try {
+    let text = '';
 
-      if (error || !text) {
-        console.error('PDF Parsing Failed:', error || 'No text returned');
-        alert('Failed to parse PDF. Please try another file.');
-        return;
+    // Convert file to Uint8Array for binary IPC transfer
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+
+    if (ext === 'pdf') {
+      console.log('Sending PDF binary data to main process:', uint8Array.length);
+      const result = await window.chatAPI.parsePDF(uint8Array);
+      if (result.error || !result.text?.trim()) {
+        throw new Error(result.error || 'No text returned from PDF');
       }
-
-      console.log('Parsed PDF Text Length:', text.length);
-
-      // Optional: Show a preview
-      const preview = text.trim().slice(0, 500);
-      console.log('PDF Preview:\n', preview);
-
-      // Compose full prompt
-      const fullPrompt = `📄 Summarize the uploaded PDF:\n\n${text}`;
-
-      // Add to chat as a user message
-      const userMessage = {
-        role: 'user',
-        content: fullPrompt,
-        timestamp: new Date().toISOString(),
-      };
-
-      const newMessages = [...messages, userMessage];
-      setMessages(newMessages);
-      await window.chatAPI.saveChat({ id: chatId, messages: newMessages });
-
-      // Pass full prompt to LLM
-      sendMessage(fullPrompt);
-    } catch (err) {
-      console.error('Unexpected error during PDF upload:', err);
-      alert('Something went wrong while uploading the PDF.');
+      text = result.text;
+    } else if (ext === 'txt' || ext === 'md') {
+      text = new TextDecoder().decode(uint8Array);
+    } else {
+      alert('Unsupported file type. Please upload a PDF, TXT, or Markdown file.');
+      return;
     }
-  };
+
+    console.log(`✅ Parsed ${ext.toUpperCase()} Text Length:`, text.length);
+    console.log('📄 Preview:\n', text.trim().slice(0, 500));
+
+    // Compose final summarization prompt
+    const fullPrompt = `📄 Summarize the uploaded ${ext.toUpperCase()} content below.${
+      ext === 'pdf'
+        ? ' The content may include tables flattened into plain text. Try to infer tabular structure from spacing.'
+        : ''
+    }\n\n${text}`;
+
+    const userMessage = {
+      role: 'user',
+      content: fullPrompt,
+      timestamp: new Date().toISOString(),
+    };
+
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
+    await window.chatAPI.saveChat({ id: chatId, messages: newMessages });
+
+    sendMessage(fullPrompt);
+  } catch (err) {
+    console.error('❌ Document upload error:', err);
+    alert('Failed to parse or upload the document. Please try another file.');
+  }
+};
 
 
 
@@ -368,13 +376,13 @@ function App() {
                     : 'bg-gray-200 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
                 }`}
             >
-              📄 Summarize PDF
+              📄 Summarize PDF,markdown,txt
             </label>
             <input
               type="file"
               id="pdf-upload"
-              accept=".pdf"
-              onChange={handlePDFUpload}
+              accept=".pdf,.txt,.md"
+              onChange={handleDocumentUpload}
               className="hidden"
               disabled={!chatId}
             />
