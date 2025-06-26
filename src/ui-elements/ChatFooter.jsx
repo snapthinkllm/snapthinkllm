@@ -30,7 +30,11 @@ export default function ChatFooter({
 
         {/* 🧠 RAG Toggle */}
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-600 dark:text-gray-300">RAG Mode</span>
+          <span className={`text-sm font-bold transition-colors ${
+              ragMode ? 'text-purple-600' : 'text-gray-500'
+            }`}>
+              RAG Mode
+          </span>
           <button
             onClick={() => setRagMode(!ragMode)}
             className={`relative w-10 h-5 rounded-full transition-all ${
