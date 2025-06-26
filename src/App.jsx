@@ -25,6 +25,8 @@ function App() {
   const messagesEndRef = useRef(null);
   const [ragMode, setRagMode] = useState(false); // RAG mode toggle
   const [documentChunks, setDocumentChunks] = useState([]); // store parsed & chunked text
+  const [embeddedChunks, setEmbeddedChunks] = useState([]);
+
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
@@ -86,6 +88,7 @@ function App() {
       const trimmed = messageToSend.trim().slice(0, 40).replace(/\n/g, ' ');
       if (trimmed) updateChatName(chatId, trimmed);
     }
+    console.log('📤 Sending message:', newMessages);
 
     const start = performance.now();
 
@@ -207,6 +210,10 @@ function App() {
       setRagMode(true);
       console.log('📄 Document chunks created:', chunks.length);
 
+      const embedded = await embedChunksLocally(chunks);
+      setEmbeddedChunks(embedded);
+      console.log('📌 Embedded Chunks:', embedded.length);
+
       // ✅ Compose summarization prompt
       const fullPrompt = `📄 Summarize the uploaded ${ext.toUpperCase()} content below.${
         ext === 'pdf'
@@ -235,17 +242,84 @@ function App() {
     }
   };
 
+  async function embedChunksLocally(chunks) {
+    const embedded = [];
+
+    for (const chunk of chunks) {
+      const res = await fetch('http://localhost:11434/api/embeddings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'nomic-embed-text', // Replace with an embedding-capable model
+          prompt: chunk,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.embedding) {
+        embedded.push({ chunk, embedding: data.embedding });
+      } else {
+        console.error('❌ Failed to embed:', chunk.slice(0, 30));
+      }
+    }
+
+    return embedded;
+  }
+
+
   const sendRAGQuestion = async (question) => {
     if (!question.trim()) return;
 
-    // Mock: combine top N chunks
-    const context = documentChunks.slice(0, 3).join('\n---\n');
+    try {
+      // Step 1: Get embedding for the question
+      const questionEmbeddingRes = await fetch('http://localhost:11434/api/embeddings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'nomic-embed-text',
+          prompt: question,
+        }),
+      });
 
-    const prompt = `You are a helpful assistant. Use the following context to answer the question:\n\n${context}\n\nQuestion: ${question}`;
+      const questionEmbeddingData = await questionEmbeddingRes.json();
+      const questionEmbedding = questionEmbeddingData.embedding;
+      console.log('🔍 Question embedding:', questionEmbedding.slice(0, 5), '...');
 
-    setInput('');
-    sendMessage(prompt); // reuse existing sendMessage logic
+      if (!questionEmbedding) {
+        throw new Error('Failed to get embedding for the question');
+      }
+
+      // Step 2: Compute cosine similarity between question and each chunk
+      const cosineSimilarity = (vecA, vecB) => {
+        const dot = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0);
+        const normA = Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0));
+        const normB = Math.sqrt(vecB.reduce((sum, b) => sum + b * b, 0));
+        return dot / (normA * normB);
+      };
+
+      const scored = embeddedChunks.map(({ chunk, embedding }) => ({
+        chunk,
+        score: cosineSimilarity(questionEmbedding, embedding),
+      }));
+
+      const topChunks = scored
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3)
+        .map((item) => item.chunk);
+
+      const context = topChunks.join('\n---\n');
+
+      // Step 3: Send prompt
+      const prompt = `📄 Use the following document context to answer the question:\n\n${context}\n\n❓ Question: ${question}`;
+
+      setInput('');
+      sendMessage(prompt);
+    } catch (err) {
+      console.error('❌ Failed to run semantic search:', err);
+      alert('Something went wrong in retrieving relevant context for your question.');
+    }
   };
+
 
 
   function renderWithThinking(text) {
@@ -285,7 +359,7 @@ function App() {
 
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-[#f4f7fb] via-[#e6edf7] to-[#dce8f2] dark:from-gray-900 dark:via-gray-800 dark:to-black text-zinc-900 dark:text-white transition-colors">
+    <div className="flex h-screen  from-[#f4f7fb] via-[#e6edf7] to-[#dce8f2] dark:from-gray-900 dark:via-gray-800 dark:bg-[#1c1d1e] text-zinc-900 dark:text-white transition-colors">
       {/* Main Chat Column */}
       <div className="flex flex-col flex-1 h-full">
 

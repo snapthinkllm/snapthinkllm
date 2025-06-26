@@ -1,4 +1,3 @@
-// ui-elements/ChatFooter.jsx
 export default function ChatFooter({
   chatId,
   input,
@@ -8,6 +7,10 @@ export default function ChatFooter({
   sendRAGQuestion,
   handleDocumentUpload,
 }) {
+  const handleSend = () => {
+    ragMode ? sendRAGQuestion(input) : sendMessage();
+  };
+
   return (
     <footer className="p-4 bg-white/70 dark:bg-gray-800/80 backdrop-blur border-t border-gray-300 dark:border-gray-700">
       {/* Action buttons row above input */}
@@ -22,14 +25,16 @@ export default function ChatFooter({
         >
           📄 Summarize PDF, markdown, txt
         </label>
+
         {ragMode && (
-            <button
-                onClick={() => sendRAGQuestion(input)}
-                className="px-4 py-1 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm shadow"
-            >
-                🧠 Ask Document
-            </button>
-            )}
+          <button
+            onClick={handleSend}
+            className="px-4 py-1 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm shadow"
+          >
+            🧠 Ask Document
+          </button>
+        )}
+
         <input
           type="file"
           id="document-upload"
@@ -47,11 +52,14 @@ export default function ChatFooter({
           placeholder="Type a message..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSend();
+          }}
           disabled={!chatId}
         />
+
         <button
-          onClick={sendMessage}
+          onClick={handleSend}
           className={`px-5 py-2 rounded-xl shadow-md transition duration-300 ${
             chatId
               ? 'bg-gradient-to-r from-[#0ea5e9] to-[#6366f1] hover:from-[#0284c7] hover:to-[#4f46e5] text-white'
