@@ -27,13 +27,24 @@ export default function ChatFooter({
         </label>
 
         {ragMode && (
-          <button
-            onClick={handleSend}
-            className="px-4 py-1 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm shadow"
-          >
-            🧠 Ask Document
-          </button>
-        )}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSend}
+                className={`px-4 py-1 rounded-full flex items-center gap-2 text-sm shadow transition-all ${
+                  ragMode
+                    ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+                disabled={!ragMode}
+              >
+                🧠 Ask with RAG
+              </button>
+              <span className="flex items-center text-xs text-purple-600 dark:text-purple-400 italic">
+                <span className="w-2 h-2 mr-1 bg-purple-500 rounded-full animate-pulse"></span>
+                RAG active
+              </span>
+            </div>
+          )}
 
         <input
           type="file"

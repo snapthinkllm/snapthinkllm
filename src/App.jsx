@@ -24,8 +24,7 @@ function App() {
   });
   const messagesEndRef = useRef(null);
   const [ragMode, setRagMode] = useState(false); // RAG mode toggle
-  const [documentChunks, setDocumentChunks] = useState([]); // store parsed & chunked text
-  const [embeddedChunks, setEmbeddedChunks] = useState([]);
+  const [ragData, setRagData] = useState(new Map());
 
 
   useEffect(() => {
@@ -60,7 +59,8 @@ function App() {
     setChatId(id);
     const data = await window.chatAPI.loadChat(id);
     setMessages(data);
-  };
+    setRagMode(ragData.has(id)); // auto enable RAG mode if document exists
+  }
 
   const updateChatName = async (id, newName) => {
     setSessions(prev => prev.map(s => (s.id === id ? { ...s, name: newName } : s)));
@@ -151,9 +151,15 @@ function App() {
   const deleteChat = async (id) => {
     await window.chatAPI.deleteChat(id);
     setSessions(prev => prev.filter(s => s.id !== id));
+    setRagData(prev => {
+      const copy = new Map(prev);
+      copy.delete(id);
+      return copy;
+    });
     if (chatId === id) {
       setChatId('');
       setMessages([]);
+      setRagMode(false);
     }
   };
 
@@ -182,7 +188,6 @@ function App() {
 
     try {
       let text = '';
-
       const arrayBuffer = await file.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
 
@@ -204,21 +209,17 @@ function App() {
       console.log(`✅ Parsed ${ext.toUpperCase()} Text Length:`, text.length);
       console.log('📄 Preview:\n', text.trim().slice(0, 500));
 
-      // ✅ Create chunks for RAG
       const chunks = chunkText(text, 300, 50);
-      setDocumentChunks(chunks);
-      setRagMode(true);
-      console.log('📄 Document chunks created:', chunks.length);
-
       const embedded = await embedChunksLocally(chunks);
-      setEmbeddedChunks(embedded);
+      
       console.log('📌 Embedded Chunks:', embedded.length);
+      // ✅ Store in ragData
+      setRagData(prev => new Map(prev).set(chatId, { chunks, embedded }));
+      setRagMode(true);
 
       // ✅ Compose summarization prompt
       const fullPrompt = `📄 Summarize the uploaded ${ext.toUpperCase()} content below.${
-        ext === 'pdf'
-          ? ' The content may include tables flattened into plain text. Try to infer tabular structure from spacing.'
-          : ''
+        ext === 'pdf' ? ' The content may include tables flattened into plain text. Try to infer tabular structure from spacing.' : ''
       }\n\n${text}`;
 
       const userMessage = {
@@ -233,8 +234,6 @@ function App() {
 
       // ✅ Trigger LLM summarization
       sendMessage(fullPrompt);
-
-      // Optional confirmation
       alert(`✅ Document uploaded. Summarization + RAG chunks (${chunks.length}) ready.`);
     } catch (err) {
       console.error('❌ Document upload error:', err);
@@ -270,9 +269,15 @@ function App() {
   const sendRAGQuestion = async (question) => {
     if (!question.trim()) return;
 
+    const data = ragData.get(chatId);
+    if (!data || !data.embedded?.length) {
+      alert('No RAG document found for this session.');
+      return;
+    }
+
     try {
       // Step 1: Get embedding for the question
-      const questionEmbeddingRes = await fetch('http://localhost:11434/api/embeddings', {
+      const res = await fetch('http://localhost:11434/api/embeddings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -281,13 +286,9 @@ function App() {
         }),
       });
 
-      const questionEmbeddingData = await questionEmbeddingRes.json();
+      const questionEmbeddingData = await res.json();
       const questionEmbedding = questionEmbeddingData.embedding;
-      console.log('🔍 Question embedding:', questionEmbedding.slice(0, 5), '...');
-
-      if (!questionEmbedding) {
-        throw new Error('Failed to get embedding for the question');
-      }
+      if (!questionEmbedding) throw new Error('No embedding returned for question');
 
       // Step 2: Compute cosine similarity between question and each chunk
       const cosineSimilarity = (vecA, vecB) => {
@@ -297,7 +298,7 @@ function App() {
         return dot / (normA * normB);
       };
 
-      const scored = embeddedChunks.map(({ chunk, embedding }) => ({
+      const scored = data.embedded.map(({ chunk, embedding }) => ({
         chunk,
         score: cosineSimilarity(questionEmbedding, embedding),
       }));
@@ -308,15 +309,12 @@ function App() {
         .map((item) => item.chunk);
 
       const context = topChunks.join('\n---\n');
-
-      // Step 3: Send prompt
       const prompt = `📄 Use the following document context to answer the question:\n\n${context}\n\n❓ Question: ${question}`;
-
       setInput('');
       sendMessage(prompt);
     } catch (err) {
-      console.error('❌ Failed to run semantic search:', err);
-      alert('Something went wrong in retrieving relevant context for your question.');
+      console.error('❌ Semantic search error:', err);
+      alert('Failed to embed or search document context.');
     }
   };
 

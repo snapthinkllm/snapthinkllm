@@ -8,8 +8,8 @@ export default function ChatHeader({
 }) {
   return (
     <header className="p-4 bg-white/80 dark:bg-gray-800/90 backdrop-blur border-b border-gray-200 dark:border-gray-700 shadow-sm flex justify-between items-center">
-      <h1 className="text-2xl font-bold tracking-tight text-[#1e4b6d] dark:text-lime-300">
-        🧠 SnapThink LLM
+      <h1 className="text-2xl font-bold tracking-tight text-[#1e4b6d] dark:text-slate-100">
+        SnapThink LLM
       </h1>
       <div className="flex items-center gap-2">
         <button
@@ -27,7 +27,7 @@ export default function ChatHeader({
         >
           📁
         </button>
-
+ 
         <button
           title="Export Current Chat"
           onClick={handleExport}
