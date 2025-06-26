@@ -25,6 +25,14 @@ function App() {
   const messagesEndRef = useRef(null);
   const [ragMode, setRagMode] = useState(false); // RAG mode toggle
   const [ragData, setRagData] = useState(new Map());
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
 
   useEffect(() => {
@@ -271,7 +279,9 @@ function App() {
 
     const data = ragData.get(chatId);
     if (!data || !data.embedded?.length) {
-      alert('No RAG document found for this session.');
+      setToast(
+        '📄 No RAG document found for this session. \n Please upload a document using "Summarize PDF" or \n disable RAG mode to ask general questions.'
+      );
       return;
     }
 
@@ -358,6 +368,16 @@ function App() {
 
   return (
     <div className="flex h-screen  from-[#f4f7fb] via-[#e6edf7] to-[#dce8f2] dark:from-gray-900 dark:via-gray-800 dark:bg-[#1c1d1e] text-zinc-900 dark:text-white transition-colors">
+      {toast && (
+        <div className="fixed left-1/3 bottom-1/5 transform -translate-x-1/2 px-6 py-4 rounded-xl shadow-xl z-50 text-sm max-w-md w-fit
+          border-2 border-yellow-500 dark:border-yellow-400
+          bg-white/90 dark:bg-gray-800/90 text-gray-900 dark:text-gray-100 backdrop-blur">
+          <div className="flex items-start gap-3">
+            <div className="text-xl">⚠️</div>
+            <div className="flex-1">{toast}</div>
+          </div>
+        </div>
+      )}
       {/* Main Chat Column */}
       <div className="flex flex-col flex-1 h-full">
 
@@ -429,6 +449,7 @@ function App() {
             input={input}
             ragMode={ragMode}
             setInput={setInput}
+            setRagMode={setRagMode} // 🆕 Add this
             sendMessage={sendMessage}
             sendRAGQuestion={sendRAGQuestion}
             handleDocumentUpload={handleDocumentUpload}
