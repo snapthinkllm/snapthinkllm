@@ -75,7 +75,8 @@ function App() {
     await window.chatAPI.renameChat({ id, name: newName });
   };
 
-  const sendMessage = async (customInput) => {
+  const sendMessage = async (customInput, metadata = {}) => {
+    console.log('📥 Sending message meta:', customInput, metadata);
     const messageToSend = typeof customInput === 'string' ? customInput : input;
 
     if (!messageToSend?.trim?.()) return;
@@ -87,8 +88,22 @@ function App() {
       timestamp: new Date().toISOString(),
     };
 
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
+    // If RAG context is available, inject it as a system message
+    const contextMessage = metadata.sources?.length
+      ? {
+          role: 'system',
+          content: `The following document content is relevant for answering the user's question:\n\n${metadata.sources
+            .map((src, i) => `--- Source ${i + 1} ---\n${src.text}`)
+            .join('\n\n')}`,
+        }
+      : null;
+
+    const finalMessages = contextMessage
+      ? [...messages, contextMessage, userMessage]
+      : [...messages, userMessage];
+
+    // Only show userMessage in UI
+    setMessages([...messages, userMessage]);
     setInput('');
     setLoading(true);
 
@@ -96,7 +111,8 @@ function App() {
       const trimmed = messageToSend.trim().slice(0, 40).replace(/\n/g, ' ');
       if (trimmed) updateChatName(chatId, trimmed);
     }
-    console.log('📤 Sending message:', newMessages);
+
+    console.log('📤 Final message history sent to LLM:', finalMessages);
 
     const start = performance.now();
 
@@ -106,7 +122,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: modelSelected,
-          messages: newMessages,
+          messages: finalMessages,
           stream: false,
         }),
       });
@@ -115,11 +131,13 @@ function App() {
       const elapsedSeconds = (end - start) / 1000;
 
       const data = await res.json();
+
       const assistantMessage = data.message
         ? {
             role: 'assistant',
             content: data.message.content,
             timestamp: new Date().toISOString(),
+            ...(metadata.sources ? { sources: metadata.sources } : {}),
           }
         : {
             role: 'assistant',
@@ -127,7 +145,7 @@ function App() {
             timestamp: new Date().toISOString(),
           };
 
-      const updatedMessages = [...newMessages, assistantMessage];
+      const updatedMessages = [...messages, userMessage, assistantMessage];
       setMessages(updatedMessages);
       await window.chatAPI.saveChat({ id: chatId, messages: updatedMessages });
 
@@ -140,7 +158,7 @@ function App() {
       setStats({
         totalTokens,
         tokensPerSecond,
-        contextTokens: estimateTokens(JSON.stringify(newMessages)),
+        contextTokens: estimateTokens(JSON.stringify(finalMessages)),
       });
     } catch (err) {
       const errorMessage = {
@@ -148,13 +166,14 @@ function App() {
         content: '[Error: Unable to fetch response]',
         timestamp: new Date().toISOString(),
       };
-      const updatedMessages = [...newMessages, errorMessage];
+      const updatedMessages = [...messages, userMessage, errorMessage];
       setMessages(updatedMessages);
       await window.chatAPI.saveChat({ id: chatId, messages: updatedMessages });
     }
 
     setLoading(false);
   };
+
 
   const deleteChat = async (id) => {
     await window.chatAPI.deleteChat(id);
@@ -280,13 +299,13 @@ function App() {
     const data = ragData.get(chatId);
     if (!data || !data.embedded?.length) {
       setToast(
-        '📄 No RAG document found for this session. \n Please upload a document using "Summarize PDF" or \n disable RAG mode to ask general questions.'
+        '📄 No RAG document found for this session. \nPlease upload a document using "Summarize PDF" or \ndisable RAG mode to ask general questions.'
       );
       return;
     }
 
     try {
-      // Step 1: Get embedding for the question
+      // Step 1: Embed the question
       const res = await fetch('http://localhost:11434/api/embeddings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -308,20 +327,44 @@ function App() {
         return dot / (normA * normB);
       };
 
-      const scored = data.embedded.map(({ chunk, embedding }) => ({
+      const scored = data.embedded.map(({ chunk, embedding }, index) => ({
         chunk,
         score: cosineSimilarity(questionEmbedding, embedding),
+        index,
       }));
 
       const topChunks = scored
         .sort((a, b) => b.score - a.score)
         .slice(0, 3)
-        .map((item) => item.chunk);
+        .map(({ chunk, index }) => ({
+          chunk,
+          sourceIndex: index,
+        }));
 
-      const context = topChunks.join('\n---\n');
-      const prompt = `📄 Use the following document context to answer the question:\n\n${context}\n\n❓ Question: ${question}`;
+      // Step 3: Compose cleaner prompt
+      const prompt = `📄 Use relevant information from the uploaded document to answer the question. Sources will be shown below.\n\n❓ Question: ${question}`;
+
+      const userMessage = {
+        role: 'user',
+        content: prompt,
+        timestamp: new Date().toISOString(),
+      };
+
+      const newMessages = [...messages, userMessage];
+      setMessages(newMessages);
       setInput('');
-      sendMessage(prompt);
+
+      const metadata = {
+        sources: topChunks.map((item) => ({
+          text: item.chunk,
+          index: item.sourceIndex,
+          fileName: data.fileName || 'Uploaded Document',
+        })),
+      };
+
+      // 🧠 Send message with `sources` attached
+      sendMessage(prompt, metadata);
+
     } catch (err) {
       console.error('❌ Semantic search error:', err);
       alert('Failed to embed or search document context.');
@@ -330,40 +373,58 @@ function App() {
 
 
 
-  function renderWithThinking(text) {
-    if (typeof text !== 'string') return null;
 
+  function renderWithThinking(text, sources = []) {
     const parts = text.split(/(<think>[\s\S]*?<\/think>)/g);
 
-    return parts.map((part, index) => {
-      const trimmed = part.trim();
+    return (
+      <>
+        {parts.map((part, index) => {
+          const trimmed = part.trim();
 
-      if (trimmed.startsWith('<think>') && trimmed.endsWith('</think>')) {
-        const content = trimmed.slice(7, -8).trim(); // Remove <think> tags
-        return (
-          <div
-            key={`think-${index}`}
-            className="my-2 p-2 border-l-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-900 dark:text-yellow-200 italic text-sm rounded"
-          >
-            💭
-            <div className="prose dark:prose-invert max-w-none">
+          if (trimmed.startsWith('<think>') && trimmed.endsWith('</think>')) {
+            const content = trimmed.slice(7, -8).trim();
+            return (
+              <div
+                key={`think-${index}`}
+                className="my-2 p-2 border-l-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-900 dark:text-yellow-200 italic text-sm rounded"
+              >
+                💭
+                <div className="prose dark:prose-invert max-w-none">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                    {content}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div key={`text-${index}`} className="prose dark:prose-invert max-w-none mb-2">
               <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-                {content}
+                {part}
               </ReactMarkdown>
             </div>
-          </div>
-        );
-      }
+          );
+        })}
 
-      return (
-        <div key={`text-${index}`} className="prose dark:prose-invert max-w-none mb-2">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-            {part}
-          </ReactMarkdown>
-        </div>
-      );
-    });
+        {/* 📄 Sources Section */}
+        {sources.length > 0 && (
+          <details className="mt-2 p-3 rounded-md border dark:border-gray-600 bg-gray-100 dark:bg-gray-800/50">
+            <summary className="cursor-pointer font-semibold text-sm">📄 Sources</summary>
+            <ul className="mt-2 list-disc list-inside text-xs space-y-1">
+              {sources.map((src, i) => (
+                <li key={i}>
+                  <span className="font-medium">{src.fileName}</span> — Chunk #{src.index + 1}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+      </>
+    );
   }
+
 
 
   return (
@@ -411,7 +472,7 @@ function App() {
                   </div>
                   <div className="prose dark:prose-invert max-w-none">
                     {m.role === 'assistant'
-                      ? renderWithThinking(m.content)
+                      ? renderWithThinking(m.content, m.sources)
                       : (
                         <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                           {m.content}
