@@ -263,7 +263,7 @@ function App() {
 
       // ✅ Trigger LLM summarization
       sendMessage(fullPrompt);
-      alert(`✅ Document uploaded. Summarization + RAG chunks (${chunks.length}) ready.`);
+      setToast(`✅ Document uploaded. Summarization + RAG chunks (${chunks.length}) ready.`);
     } catch (err) {
       console.error('❌ Document upload error:', err);
       alert('Failed to parse or upload the document. Please try another file.');
@@ -414,7 +414,7 @@ function App() {
         {/* 📄 Enhanced Sources Section */}
         {sources.length > 0 && (
           <details className="mt-3 p-3 rounded-md border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800/40 shadow-sm">
-            <summary className="cursor-pointer font-semibold text-sm text-gray-800 dark:text-gray-100">
+            <summary className="cursor-pointer font-semibold text-sm text-gray-900 dark:text-gray-100">
               📄 Sources ({sources.length})
             </summary>
             <ul className="mt-3 space-y-2">
@@ -527,6 +527,7 @@ function App() {
             sendMessage={sendMessage}
             sendRAGQuestion={sendRAGQuestion}
             handleDocumentUpload={handleDocumentUpload}
+            loading={loading}
           />
         )}
       </div>
