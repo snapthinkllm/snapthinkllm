@@ -29,7 +29,7 @@ function App() {
 
   useEffect(() => {
     if (toast) {
-      const timer = setTimeout(() => setToast(null), 3000);
+      const timer = setTimeout(() => setToast(null), 5000);
       return () => clearTimeout(timer);
     }
   }, [toast]);
@@ -75,35 +75,37 @@ function App() {
     await window.chatAPI.renameChat({ id, name: newName });
   };
 
+  function buildMessageContext(inputText, metadata = {}) {
+      const userMessage = {
+        role: 'user',
+        content: inputText,
+        timestamp: new Date().toISOString(),
+      };
+
+      if (metadata.sources?.length) {
+        const contextMessage = {
+          role: 'system',
+          content: `The following document content is relevant for answering the user's question:\n\n${metadata.sources
+            .map((src, i) => `--- Source ${i + 1} ---\n${src.text}`)
+            .join('\n\n')}`,
+        };
+        return [[...messages, contextMessage, userMessage], userMessage];
+      }
+
+      return [[...messages, userMessage], userMessage];
+    }
+
   const sendMessage = async (customInput, metadata = {}) => {
-    console.log('📥 Sending message meta:', customInput, metadata);
     const messageToSend = typeof customInput === 'string' ? customInput : input;
 
     if (!messageToSend?.trim?.()) return;
     if (!chatId) return alert('Please create or select a chat session first.');
 
-    const userMessage = {
-      role: 'user',
-      content: messageToSend,
-      timestamp: new Date().toISOString(),
-    };
+    const [finalMessages, userMessage] = buildMessageContext(messageToSend, metadata);
 
-    // If RAG context is available, inject it as a system message
-    const contextMessage = metadata.sources?.length
-      ? {
-          role: 'system',
-          content: `The following document content is relevant for answering the user's question:\n\n${metadata.sources
-            .map((src, i) => `--- Source ${i + 1} ---\n${src.text}`)
-            .join('\n\n')}`,
-        }
-      : null;
-
-    const finalMessages = contextMessage
-      ? [...messages, contextMessage, userMessage]
-      : [...messages, userMessage];
-
-    // Only show userMessage in UI
-    setMessages([...messages, userMessage]);
+    // Show only userMessage in UI
+    const updatedUI = [...messages, userMessage];
+    setMessages(updatedUI);
     setInput('');
     setLoading(true);
 
@@ -145,7 +147,7 @@ function App() {
             timestamp: new Date().toISOString(),
           };
 
-      const updatedMessages = [...messages, userMessage, assistantMessage];
+      const updatedMessages = [...updatedUI, assistantMessage];
       setMessages(updatedMessages);
       await window.chatAPI.saveChat({ id: chatId, messages: updatedMessages });
 
@@ -166,7 +168,7 @@ function App() {
         content: '[Error: Unable to fetch response]',
         timestamp: new Date().toISOString(),
       };
-      const updatedMessages = [...messages, userMessage, errorMessage];
+      const updatedMessages = [...updatedUI, errorMessage];
       setMessages(updatedMessages);
       await window.chatAPI.saveChat({ id: chatId, messages: updatedMessages });
     }
@@ -379,6 +381,7 @@ function App() {
 
     return (
       <>
+        {/* 🔍 Main Assistant Response Rendering */}
         {parts.map((part, index) => {
           const trimmed = part.trim();
 
@@ -408,14 +411,23 @@ function App() {
           );
         })}
 
-        {/* 📄 Sources Section */}
+        {/* 📄 Enhanced Sources Section */}
         {sources.length > 0 && (
-          <details className="mt-2 p-3 rounded-md border dark:border-gray-600 bg-gray-100 dark:bg-gray-800/50">
-            <summary className="cursor-pointer font-semibold text-sm">📄 Sources</summary>
-            <ul className="mt-2 list-disc list-inside text-xs space-y-1">
+          <details className="mt-3 p-3 rounded-md border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800/40 shadow-sm">
+            <summary className="cursor-pointer font-semibold text-sm text-gray-800 dark:text-gray-100">
+              📄 Sources ({sources.length})
+            </summary>
+            <ul className="mt-3 space-y-2">
               {sources.map((src, i) => (
                 <li key={i}>
-                  <span className="font-medium">{src.fileName}</span> — Chunk #{src.index + 1}
+                  <details className="bg-white dark:bg-gray-700 p-2 rounded-md border border-gray-200 dark:border-gray-600">
+                    <summary className="cursor-pointer text-xs font-mono">
+                      📑 {src.fileName || 'Document'} — Chunk #{src.index + 1}
+                    </summary>
+                    <pre className="mt-2 text-[11px] whitespace-pre-wrap text-gray-100 dark:text-gray-100">
+                      {src.text}
+                    </pre>
+                  </details>
                 </li>
               ))}
             </ul>
@@ -424,6 +436,7 @@ function App() {
       </>
     );
   }
+
 
 
 
