@@ -1,89 +1,103 @@
+# 🚀 SnapThink LLM – Local AI Chat App
 
-
-# Getting started
-
-UI for Snapthinkllm 
-
-1. Clone the repo
-2. Run: npm install
-3. Run: npm run build
-4. Run: npm run dev
-
-
-Features list: 
-1. 
-2. Model selector
-3. Add new model and Download model from ollama
-4. See download progress and cancel midway
-
-⚠️ Notes
-You must have Ollama CLI installed and in PATH (should work fine from terminal).
-
-Make sure your app has permissions to spawn processes (it does by default).
-
-
-
-# 📋 SnapThink LLM – Feature Summary
-
-## ✅ Core Features
-
-| Feature | Description |
-|--------|-------------|
-| 💬 **Chat Interface** | Clean, ChatGPT-like UI with markdown rendering, timestamps, and message roles (user vs assistant). |
-| 🧠 **Model Selector Screen** | Lets user choose from a list of known models (e.g., LLaMA, Mistral, Gemma, etc.) based on system VRAM/RAM compatibility. |
-| ⌨️ **Input + Send Message** | Message input box with enter-to-send and send button. |
-| 📤 **API Integration** | Uses Ollama's `/api/chat` endpoint to communicate with LLMs locally. |
+SnapThink is a powerful local chat UI powered by [Ollama](https://ollama.com) and Electron. It supports model management, chat session history, markdown rendering, document summarization, and retrieval-augmented generation (RAG) – all locally on your machine.
 
 ---
 
-## 💾 Chat Session Management
+## 🧰 Getting Started
 
-| Feature | Description |
-|--------|-------------|
-| 📁 **Save Chats to Disk** | Saves each chat session to a JSON file in userData folder. |
-| 📋 **List Sessions** | Sidebar shows all past chat sessions, with their custom names. |
-| ✏️ **Rename Sessions** | Renames sessions via a manifest (`chats.json`). |
-| 🗑️ **Delete Sessions** | Permanently deletes a chat and removes from manifest. |
+1. **Clone the repo**
+2. `npm install`
+3. `npm run build`
+4. `npm run dev`
 
----
-
-## 🧠 Model Handling
-
-| Feature | Description |
-|--------|-------------|
-| 📦 **Pull Model** | Downloads models using `ollama pull <model>`. |
-| 📊 **Progress Modal** | Shows a download progress bar with status updates. |
-| ❌ **Cancel Download** | Gracefully cancels a model download mid-way. |
-| ✅ **Done Button** | Appears once model is fully downloaded. |
+⚠️ You must have **[Ollama](https://ollama.com/download)** CLI installed and available in your system PATH.
 
 ---
 
-## 🎨 Markdown + Custom Tags
+## ✅ Features Overview
+
+### 💬 Core Chat Features
 
 | Feature | Description |
 |--------|-------------|
-| 📄 **Markdown Support** | Messages support GitHub-flavored markdown (GFM) with raw HTML. |
-| 💭 **<think> Rendering** | Wraps `<think>...</think>` blocks in a highlighted bubble with an icon. |
-| 🧱 **Error Boundary Fix** | Prevents crash when invalid markdown is rendered. |
+| 💡 **Chat Interface** | ChatGPT-style UI with markdown, role tags, timestamps |
+| ⌨️ **Input Box** | Text input with enter-to-send and button controls |
+| 📤 **Local LLM API** | Uses `ollama`'s `/api/chat` endpoint |
+| 🌗 **Dark Mode** | Toggleable theme, stored in localStorage |
 
 ---
 
-## 🧰 Developer Enhancements
+### 💾 Chat Session Management
 
 | Feature | Description |
 |--------|-------------|
-| ⚙️ **Electron Integration** | Communicates between renderer and Node backend (preload + ipcMain). |
-| 📂 **Show Folder in Explorer** | Opens chat folder in system file browser. |
-| 🌗 **Dark Mode Toggle** | Switches between light and dark themes and persists in localStorage. |
+| 📁 **Save/Load Chats** | Each session saved as JSON under `userData/chats` |
+| 📋 **Sidebar with Sessions** | Displays named chats with rename + delete support |
+| 📝 **Rename Session** | Edits `chats.json` manifest file |
+| 🗑️ **Delete Session** | Removes chat + manifest entry |
+| 📤 **Export / 📥 Import Chat** | Backup and restore individual chat sessions |
 
 ---
 
-## 🛠️ In Progress / Upcoming
+### 🧠 Model Management
 
 | Feature | Description |
 |--------|-------------|
-| 🔄 **Dynamic Progress Feedback** | For large model downloads, possibly replacing static progress bar with streaming lines. |
-| 📁 **Import/Export Chat** | To back up, share, or migrate chats via JSON. |
-| 🧾 **Known Models Externalized** | Plan to move model list into a separate, persistent config file (JSON or JS). |
-| 📚 **Long Document Summarization** | Coming up — summarize multi-page inputs in segments. |
+| 📦 **Model Selector Screen** | Shows known models + hardware recommendations |
+| 📥 **Pull Models from Ollama** | Use custom model names (e.g., `mistral:7b-instruct`) |
+| ⏳ **Download Progress Modal** | Tracks and displays status with cancel support |
+| ✅ **Downloaded Models Listing** | Separates downloaded models from suggested ones |
+| ⚠️ **Manual Override** | Allows selecting incompatible models |
+| 🧠 **Hardware Detection** | Auto-detects RAM/VRAM via `systeminformation` |
+
+---
+
+### 🧾 Document Summarization
+
+| Feature | Description |
+|--------|-------------|
+| 📄 **PDF Parsing** | Reads and parses PDFs using `pdf-parse` |
+| 🧩 **Chunking** | Splits large docs into manageable pieces |
+| 🧠 **Summarization** | Summarizes each chunk locally using LLM |
+| 📊 **Session Integration** | Injects summary into current chat |
+
+---
+
+### 🔍 Retrieval-Augmented Generation (RAG)
+
+| Feature | Description |
+|--------|-------------|
+| 📂 **Per-Session Document Indexing** | Uploaded files are chunked and embedded |
+| 🧠 **Contextual Answers** | Matched chunks are passed to prompt |
+| 📄 **Show Sources Toggle** | Collapsible "Sources" section under answers |
+| 🔒 **Session Isolation** | Document context is scoped to each session |
+
+---
+
+## 🛠 Developer Notes
+
+| Feature | Description |
+|--------|-------------|
+| ⚙️ **Electron Integration** | Secure `ipcMain` + `preload.cjs` bridge |
+| 📂 **Open Chat Folder** | Shows folder in file explorer |
+| 🔄 **Model List Parsing** | Compatible with older Ollama CLI via fallback |
+| 🛠 **Pluggable Model Registry** | Easily expand model list with JSON/JS config |
+
+---
+
+## 🧪 Roadmap
+
+- [ ] Multi-file RAG per session
+- [ ] Model config editor UI
+- [ ] Settings panel (GPU usage, system caps)
+- [ ] Export full chat history
+
+---
+
+## 📎 Notes
+
+- Models are stored and served locally via Ollama.
+- This app doesn't send any data to the internet unless the LLM model you're using does so (e.g., community-created models).
+- All features run 100% offline.
 
