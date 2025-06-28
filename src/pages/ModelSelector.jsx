@@ -120,7 +120,7 @@ function ModelSelector({ onSelect }) {
             : 'bg-gray-400 text-gray-100 cursor-not-allowed'
         }`}
       >
-        {isDownloaded ? '✅ Select' : isCompatible ? 'Select' : 'Incompatible'}
+        {isDownloaded ? isCompatible ?' Select': 'Incompatible' : isCompatible ? 'Select' : 'Incompatible'}
       </button>
     </div>
   );
@@ -159,6 +159,50 @@ function ModelSelector({ onSelect }) {
         </label>
       </div>
 
+      {/* Downloaded Models */}
+      {downloadedModels.length > 0 && (
+        <div>
+          <h2 className="text-xl font-semibold mt-8 mb-2">📥 Downloaded Models</h2>
+          <hr className="border-1 border-gray-500 dark:border-gray-500 mb-4" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {downloadedModels.map((models) => {
+              const model = modelRegistry.find((m) => m.name === models.name);
+              console.log('Rendering downloaded model:', model, models.name);
+              const isCompatible = model
+                ? config.vram >= model.vram && config.ram >= model.recommendedRAM
+                : true;
+
+              return model
+                ? renderModelCard(model, isCompatible, true)
+                : (
+                  <div
+                    key={typeof models.name === 'string' ? models.name : `custom-${Date.now()}-${Math.random()}`}
+                    className="p-4 rounded-xl border shadow-md bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-100"
+                  >
+                    <div className="mb-2 font-semibold">{String(models.name)}</div>
+                    <div className="text-sm text-gray-700 dark:text-gray-300 mb-1">
+                      Requires <b>{models.sizeRaw} VRAM</b>
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                      User Downloaded model
+                    </div>
+                    <div className="text-green-600 dark:text-green-400 text-xs font-semibold mb-2">
+                      ✅ Downloaded
+                    </div>
+                    <button
+                      onClick={() => onSelect(models.name)}
+                      className="w-full px-3 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium"
+                    >
+                       Select
+                    </button>
+                  </div>
+                );
+            })}
+          </div>
+        </div>
+      )}
+
+
       {/* Suggested Starter Models */}
       <div>
         <h2 className="text-xl font-semibold mt-8 mb-2">💡 Suggested Starter Models</h2>
@@ -168,15 +212,16 @@ function ModelSelector({ onSelect }) {
             renderModelCard(
               model,
               config.vram >= model.vram && config.ram >= model.recommendedRAM,
-              downloadedModels.includes(model.name)
+              false
             )
           )}
         </div>
       </div>
-
+            
       {/* Add custom model */}
       <div className="space-y-2 mt-8">
-        <label className="block font-medium">Add custom model name (Ollama)</label>
+        <h2 className="text-xl font-semibold mt-8 mb-2"><label className="block font-medium">Pull a new model from Ollama</label></h2>
+        <hr className="border-1 border-gray-500 dark:border-gray-500 mb-4" />
         <div className="flex gap-2">
           <input
             type="text"
