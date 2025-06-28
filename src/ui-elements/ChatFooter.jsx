@@ -90,6 +90,7 @@ export default function ChatFooter({
             {ragMode ? 'Ask RAG' : 'Send'}
         </button>
       </div>
+      <div className="text-center text-xs text-black dark:text-white font-mono font-extralight ">Snap think llm can make mistakes</div>
     </footer>
   );
 }
