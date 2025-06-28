@@ -1,0 +1,58 @@
+// src/config/modelRegistry.js
+
+export const modelRegistry = [
+  {
+    name: 'gemma3:4b',
+    company: 'Google',
+    size: '4B',
+    vram: 6,
+    type: 'text',
+    recommendedRAM: 8,
+    logo: './logos/gemma.png',
+  },
+  {
+    name: 'gemma3:12b',
+    company: 'Google',
+    size: '12B',
+    vram: 12,
+    type: 'text',
+    recommendedRAM: 16,
+    logo: './logos/gemma.png',
+  },
+  {
+    name: 'llama3:8b',
+    company: 'Ollama',
+    size: '8B',
+    vram: 8,
+    type: 'text',
+    recommendedRAM: 16,
+    logo: './logos/ollama.png',
+  },
+  {
+    name: 'codellama:7b',
+    company: 'Ollama',
+    size: '7B',
+    vram: 6,
+    type: 'code',
+    recommendedRAM: 12,
+    logo: './logos/ollama.png',
+  },
+  {
+    name: 'mistral:7b',
+    company: 'MistralAI',
+    size: '7B',
+    vram: 12,
+    type: 'text',
+    recommendedRAM: 8,
+    logo: './logos/mistral.png',
+  },
+  {
+    name: 'deepseek-r1:7b',
+    company: 'Deepseek',
+    size: '7B',
+    vram: 4.7,
+    type: 'text',
+    recommendedRAM: 8,
+    logo: './logos/deepseek.png',
+  },
+];

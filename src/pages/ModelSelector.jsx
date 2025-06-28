@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import DownloadProgressModal from '../ui-elements/DownloadProgressModal.jsx';
+import { modelRegistry } from '../models/modelRegistry';
+
 
 const knownModels = [
   { name: 'gemma3:4b', company: 'Google', size: '4B', vram: 6, type: 'text', recommendedRAM: 8, logo: './logos/gemma.png' },
@@ -36,7 +38,7 @@ function ModelSelector({ onSelect }) {
     };
   }, [downloading]);
 
-  const groupedModels = knownModels.reduce((groups, model) => {
+  const groupedModels = modelRegistry.reduce((groups, model) => {
     if (!groups[model.company]) groups[model.company] = [];
     groups[model.company].push(model);
     return groups;

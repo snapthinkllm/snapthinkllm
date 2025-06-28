@@ -1,4 +1,12 @@
-// ui-elements/ChatHeader.jsx
+import {
+  Sun,
+  Moon,
+  Folder,
+  Upload,
+  Download,
+  RefreshCw,
+} from 'lucide-react';
+
 export default function ChatHeader({
   darkMode,
   setDarkMode,
@@ -6,50 +14,57 @@ export default function ChatHeader({
   handleImport,
   setModelSelected,
 }) {
+  const iconClass = 'w-5 h-5 hover:scale-110 transition-transform';
+
   return (
     <header className="p-4 bg-white/80 dark:bg-gray-800/90 backdrop-blur border-b border-gray-200 dark:border-gray-700 shadow-sm flex justify-between items-center">
       <h1 className="text-2xl font-bold tracking-tight text-[#1e4b6d] dark:text-slate-100">
         SnapThink LLM
       </h1>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4">
+        {/* Theme Toggle */}
         <button
           title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           onClick={() => setDarkMode(!darkMode)}
-          className="p-1 rounded-full bg-stone-300 hover:bg-slate-600 text-white shadow transition"
+          className="text-gray-800 dark:text-white hover:text-blue-500"
         >
-          {darkMode ? '🌞' : '🌙'}
+          {darkMode ? <Sun className={iconClass} /> : <Moon className={iconClass} />}
         </button>
 
+        {/* Open Chat Folder */}
         <button
           title="Open Chat Folder"
           onClick={() => window.chatAPI.showChatFolder()}
-          className="p-1 rounded-full bg-yellow-600 hover:bg-yellow-700 text-white shadow transition"
+          className="text-gray-800 dark:text-white hover:text-yellow-500"
         >
-          📁
+          <Folder className={iconClass} />
         </button>
- 
+
+        {/* Export Chat */}
         <button
           title="Export Current Chat"
           onClick={handleExport}
-          className="p-1 rounded-full bg-green-600 hover:bg-green-700 text-white shadow transition"
+          className="text-gray-800 dark:text-white hover:text-green-500"
         >
-          📤
+          <Upload className={iconClass} />
         </button>
 
+        {/* Import Chat */}
         <button
           title="Import Chat"
           onClick={handleImport}
-          className="p-1 rounded-full bg-purple-600 hover:bg-purple-700 text-white shadow transition"
+          className="text-gray-800 dark:text-white hover:text-purple-500"
         >
-          📥
+          <Download className={iconClass} />
         </button>
 
+        {/* Change Model */}
         <button
           title="Change Model"
           onClick={() => setModelSelected(null)}
-          className="p-1 rounded-full bg-red-600 hover:bg-red-700 text-white shadow transition"
+          className="text-gray-800 dark:text-white hover:text-red-500"
         >
-          🔄
+          <RefreshCw className={iconClass} />
         </button>
       </div>
     </header>
