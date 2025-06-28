@@ -23,6 +23,10 @@ contextBridge.exposeInMainWorld('chatAPI', {
 
   onModelStatus: (callback) => ipcRenderer.on('model-status', (_, msg) => callback(msg)),
 
+  getDownloadedModels: () => ipcRenderer.invoke('get-downloaded-models'),
+
+  getHardwareInfo: () => ipcRenderer.invoke('get-hardware-info'),
+
   exportChat: (id) => ipcRenderer.invoke('export-chat', id),
   
   importChat: () => ipcRenderer.invoke('import-chat'),

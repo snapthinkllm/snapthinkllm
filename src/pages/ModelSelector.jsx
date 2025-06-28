@@ -2,16 +2,6 @@ import { useState, useEffect } from 'react';
 import DownloadProgressModal from '../ui-elements/DownloadProgressModal.jsx';
 import { modelRegistry } from '../models/modelRegistry';
 
-
-const knownModels = [
-  { name: 'gemma3:4b', company: 'Google', size: '4B', vram: 6, type: 'text', recommendedRAM: 8, logo: './logos/gemma.png' },
-  { name: 'gemma3:12b', company: 'Google', size: '12B', vram: 12, type: 'text', recommendedRAM: 16, logo: './logos/gemma.png' },
-  { name: 'llama3:8b', company: 'Ollama', size: '8B', vram: 8, type: 'text', recommendedRAM: 16, logo: './logos/ollama.png' },
-  { name: 'codellama:7b', company: 'Ollama', size: '7B', vram: 6, type: 'code', recommendedRAM: 12, logo: './logos/ollama.png' },
-  { name: 'mistral:7b', company: 'MistralAI', size: '7B', vram: 12, type: 'text', recommendedRAM: 8, logo: './logos/mistral.png' },
-  { name: 'deepseek-r1:7b', company: 'Deepseek', size: '7B', vram: 4.7, type: 'text', recommendedRAM: 8, logo: './logos/deepseek.png' },
-];
-
 function ModelSelector({ onSelect }) {
   const [config, setConfig] = useState({ ram: 16, vram: 8 });
   const [customModel, setCustomModel] = useState('');
@@ -19,7 +9,11 @@ function ModelSelector({ onSelect }) {
   const [status, setStatus] = useState(null);
   const [progress, setProgress] = useState(null);
 
+  const [downloadedModels, setDownloadedModels] = useState([]);
+  const [suggestedModels, setSuggestedModels] = useState([]);
+
   useEffect(() => {
+    // Model status listener
     const unsubscribe = window.chatAPI?.onModelStatus((msg) => {
       if (msg.model === downloading) {
         setStatus(msg.status);
@@ -28,21 +22,42 @@ function ModelSelector({ onSelect }) {
           setDownloading(null);
           setStatus(null);
           setProgress(null);
+          refreshDownloadedModels();
           onSelect(msg.model);
         }
       }
     });
 
+    detectHardware();
+    refreshDownloadedModels();
+
     return () => {
       if (unsubscribe?.dispose) unsubscribe.dispose?.();
     };
-  }, [downloading]);
+  }, []);
 
-  const groupedModels = modelRegistry.reduce((groups, model) => {
-    if (!groups[model.company]) groups[model.company] = [];
-    groups[model.company].push(model);
-    return groups;
-  }, {});
+  const detectHardware = async () => {
+    const hw = await window.chatAPI.getHardwareInfo();
+    const rounded = {
+      ram: hw.ram,
+      vram: hw.vram, // Round MB to GB
+    };
+    setConfig(rounded);
+    updateSuggestions(rounded.ram, rounded.vram);
+  };
+
+  const refreshDownloadedModels = async () => {
+    const list = await window.chatAPI.getDownloadedModels();
+    console.log('Downloaded models:', list);
+    setDownloadedModels(list);
+  };
+
+  const updateSuggestions = (ram, vram) => {
+    const suggested = modelRegistry.filter(
+      (m) => ram >= m.recommendedRAM && vram >= m.vram
+    );
+    setSuggestedModels(suggested);
+  };
 
   const handleAddModel = async () => {
     const model = customModel.trim();
@@ -67,6 +82,49 @@ function ModelSelector({ onSelect }) {
     setProgress(null);
   };
 
+  const renderModelCard = (model, isCompatible, isDownloaded = false) => (
+    <div
+      key={model.name}
+      className={`p-4 rounded-xl shadow-md border transition ${
+        isCompatible
+          ? 'bg-blue-50 dark:bg-blue-900 text-blue-800 dark:text-blue-100 border-blue-200 dark:border-blue-700'
+          : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700'
+      }`}
+    >
+      <div className="flex items-center gap-3 mb-2">
+        <img src={model.logo} alt={model.company} className="w-10 h-10 rounded-md bg-white p-1 shadow-sm" />
+        <div>
+          <div className="font-semibold">{model.name}</div>
+          <div className="text-xs text-gray-600 dark:text-gray-400">
+            {model.size} • {model.type}
+          </div>
+        </div>
+      </div>
+
+      <div className="text-sm text-gray-700 dark:text-gray-300 mb-1">
+        Requires <b>{model.vram}GB VRAM</b>, <b>{model.recommendedRAM}GB RAM</b>
+      </div>
+
+      {isDownloaded && (
+        <div className="text-green-600 dark:text-green-400 text-xs font-semibold mb-2">
+          ✅ Downloaded
+        </div>
+      )}
+
+      <button
+        disabled={!isCompatible}
+        onClick={() => onSelect(model.name)}
+        className={`w-full px-3 py-2 rounded-md font-medium transition ${
+          isCompatible
+            ? 'bg-blue-600 hover:bg-blue-700 text-white'
+            : 'bg-gray-400 text-gray-100 cursor-not-allowed'
+        }`}
+      >
+        {isDownloaded ? '✅ Select' : isCompatible ? 'Select' : 'Incompatible'}
+      </button>
+    </div>
+  );
+
   return (
     <div className="p-6 text-gray-900 dark:text-white space-y-6">
       <h1 className="text-3xl font-bold">🧠 Select a Compatible LLM</h1>
@@ -78,7 +136,11 @@ function ModelSelector({ onSelect }) {
           <input
             type="number"
             value={config.ram}
-            onChange={(e) => setConfig({ ...config, ram: +e.target.value })}
+            onChange={(e) => {
+              const val = +e.target.value;
+              setConfig({ ...config, ram: val });
+              updateSuggestions(val, config.vram);
+            }}
             className="px-3 py-1 rounded border border-gray-400 bg-white dark:bg-gray-800"
           />
         </label>
@@ -87,62 +149,33 @@ function ModelSelector({ onSelect }) {
           <input
             type="number"
             value={config.vram}
-            onChange={(e) => setConfig({ ...config, vram: +e.target.value })}
+            onChange={(e) => {
+              const val = +e.target.value;
+              setConfig({ ...config, vram: val });
+              updateSuggestions(config.ram, val);
+            }}
             className="px-3 py-1 rounded border border-gray-400 bg-white dark:bg-gray-800"
           />
         </label>
       </div>
 
-      {/* Model cards */}
-      {Object.entries(groupedModels).map(([company, models]) => (
-        <div key={company}>
-          <h2 className="text-xl font-semibold mt-8 mb-2">{company}</h2>
-          <hr className="border-1 border-gray-500 dark:border-gray-500 mb-4" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {models.map((model) => {
-              const isCompatible = config.vram >= model.vram && config.ram >= model.recommendedRAM;
-
-              return (
-                <div
-                  key={model.name}
-                  className={`p-4 rounded-xl shadow-md border transition ${
-                    isCompatible
-                      ? 'bg-blue-50 dark:bg-blue-900 text-blue-800 dark:text-blue-100 border-blue-200 dark:border-blue-700'
-                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 mb-2">
-                    <img src={model.logo} alt={model.company} className="w-10 h-10 rounded-md bg-white p-1 shadow-sm" />
-                    <div>
-                      <div className="font-semibold">{model.name}</div>
-                      <div className="text-xs text-gray-600 dark:text-gray-400">
-                        {model.size} • {model.type}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-sm text-gray-700 dark:text-gray-300 mb-3">
-                    Requires <b>{model.vram}GB VRAM</b>, <b>{model.recommendedRAM}GB RAM</b>
-                  </div>
-                  <button
-                    disabled={!isCompatible}
-                    onClick={() => onSelect(model.name)}
-                    className={`w-full px-3 py-2 rounded-md font-medium transition ${
-                      isCompatible
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                        : 'bg-gray-400 text-gray-100 cursor-not-allowed'
-                    }`}
-                  >
-                    {isCompatible ? 'Select' : 'Incompatible'}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+      {/* Suggested Starter Models */}
+      <div>
+        <h2 className="text-xl font-semibold mt-8 mb-2">💡 Suggested Starter Models</h2>
+        <hr className="border-1 border-gray-500 dark:border-gray-500 mb-4" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {suggestedModels.map((model) =>
+            renderModelCard(
+              model,
+              config.vram >= model.vram && config.ram >= model.recommendedRAM,
+              downloadedModels.includes(model.name)
+            )
+          )}
         </div>
-      ))}
+      </div>
 
       {/* Add custom model */}
-      <div className="space-y-2">
+      <div className="space-y-2 mt-8">
         <label className="block font-medium">Add custom model name (Ollama)</label>
         <div className="flex gap-2">
           <input
@@ -176,7 +209,6 @@ function ModelSelector({ onSelect }) {
           />
         )}
       </div>
-
     </div>
   );
 }
