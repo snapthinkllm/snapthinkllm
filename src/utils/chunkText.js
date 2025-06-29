@@ -1,4 +1,5 @@
 export function chunkText(text, maxTokens = 300, overlap = 50) {
+  console.time('Chunking time');
   const words = text.split(/\s+/);
   const chunks = [];
 
@@ -9,6 +10,6 @@ export function chunkText(text, maxTokens = 300, overlap = 50) {
       chunks.push(chunk);
     }
   }
-
+  console.timeEnd('Chunking time');
   return chunks;
 }

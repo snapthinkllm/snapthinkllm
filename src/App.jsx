@@ -26,6 +26,8 @@ function App() {
   const [ragMode, setRagMode] = useState(false); // RAG mode toggle
   const [ragData, setRagData] = useState(new Map());
   const [toast, setToast] = useState(null);
+  const [docUploaded, setDocUploaded] = useState(false);
+
 
   useEffect(() => {
     if (toast) {
@@ -60,6 +62,7 @@ function App() {
     setChatId(id);
     setMessages([]);
     setSessions(prev => [...prev, { id, name: defaultName }]);
+    setDocUploaded(false);
     await window.chatAPI.renameChat({ id, name: defaultName });
   };
 
@@ -67,6 +70,7 @@ function App() {
     setChatId(id);
     const data = await window.chatAPI.loadChat(id);
     setMessages(data);
+    setDocUploaded(ragData.has(id));
     setRagMode(ragData.has(id)); // auto enable RAG mode if document exists
   }
 
@@ -240,20 +244,31 @@ function App() {
 
       const chunks = chunkText(text, 300, 50);
       const embedded = await embedChunksLocally(chunks);
-      
+
       console.log('📌 Embedded Chunks:', embedded.length);
-      // ✅ Store in ragData
-      setRagData(prev => new Map(prev).set(chatId, { chunks, embedded }));
+      setRagData(prev => new Map(prev).set(chatId, {
+        chunks,
+        embedded,
+        fileName: file.name,
+      }));
       setRagMode(true);
 
-      // ✅ Compose summarization prompt
-      const fullPrompt = `📄 Summarize the uploaded ${ext.toUpperCase()} content below.${
-        ext === 'pdf' ? ' The content may include tables flattened into plain text. Try to infer tabular structure from spacing.' : ''
-      }\n\n${text}`;
+      // ✅ Compose synthetic RAG summarization question
+      const prompt = `📄 Summarize the uploaded ${ext.toUpperCase()} document using its content. Highlight main sections, topics, and key takeaways.`;
+
+      const topChunks = embedded.map((item, index) => ({
+        text: item.chunk,
+        index,
+        fileName: file.name,
+      }));
+
+      const metadata = {
+        sources: topChunks,
+      };
 
       const userMessage = {
         role: 'user',
-        content: fullPrompt,
+        content: prompt,
         timestamp: new Date().toISOString(),
       };
 
@@ -261,17 +276,32 @@ function App() {
       setMessages(newMessages);
       await window.chatAPI.saveChat({ id: chatId, messages: newMessages });
 
-      // ✅ Trigger LLM summarization
-      sendMessage(fullPrompt);
-      setToast(`✅ Document uploaded. Summarization + RAG chunks (${chunks.length}) ready.`);
+      setToast(`✅ Document uploaded. RAG summarization from ${chunks.length} chunks ready.`);
+
     } catch (err) {
       console.error('❌ Document upload error:', err);
       alert('Failed to parse or upload the document. Please try another file.');
     }
   };
 
+  const handleSummarizeDoc = () => {
+    const data = ragData.get(chatId);
+    if (!data) {
+      alert('❌ No document found for summarization.');
+      return;
+    }
+
+    const allText = data.chunks.join(' ');
+    const summarizePrompt = `📄 Summarize the uploaded document below.\n\n${allText}`;
+
+    sendMessage(summarizePrompt);
+  };
+
+
   async function embedChunksLocally(chunks) {
     const embedded = [];
+    console.log('🔍 Embedding chunks...');
+    console.time('Embedding time');
 
     for (const chunk of chunks) {
       const res = await fetch('http://localhost:11434/api/embeddings', {
@@ -290,6 +320,7 @@ function App() {
         console.error('❌ Failed to embed:', chunk.slice(0, 30));
       }
     }
+    console.timeEnd('Embedding time');
 
     return embedded;
   }
@@ -523,11 +554,14 @@ function App() {
             input={input}
             ragMode={ragMode}
             setInput={setInput}
-            setRagMode={setRagMode} // 🆕 Add this
+            setRagMode={setRagMode}
             sendMessage={sendMessage}
             sendRAGQuestion={sendRAGQuestion}
             handleDocumentUpload={handleDocumentUpload}
+            handleSummarizeDoc={handleSummarizeDoc}
             loading={loading}
+            docUploaded={docUploaded}
+            setDocUploaded={setDocUploaded}
           />
         )}
       </div>
