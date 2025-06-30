@@ -16,7 +16,7 @@ function ModelSelector({ onSelect }) {
   useEffect(() => {
     const unsubscribe = window.chatAPI?.onModelStatus((msg) => {
       console.log('Model status update:', msg, downloading);
-      if (msg.model?.startsWith(downloading)) return;
+      if (msg.model !== downloading) return;
 
       setStatus(msg.status);
       if (msg.progress !== undefined) {
@@ -315,6 +315,8 @@ function ModelSelector({ onSelect }) {
               setDownloading(null);
               setStatus(null);
               setProgress(null);
+              setDetail(null);
+              refreshDownloadedModels();
             }}
           />
         )}

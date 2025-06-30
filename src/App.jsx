@@ -7,6 +7,7 @@ import ModelSelector from './pages/ModelSelector';
 import ChatHeader from './ui-elements/ChatHeader';
 import ChatFooter from './ui-elements/ChatFooter';
 import { chunkText } from './utils/chunkText';
+import DownloadProgressModal from './ui-elements/DownloadProgressModal';
 
 
 function App() {
@@ -27,6 +28,11 @@ function App() {
   const [ragData, setRagData] = useState(new Map());
   const [toast, setToast] = useState(null);
   const [docUploaded, setDocUploaded] = useState(false);
+  const [downloading, setDownloading] = useState(null);
+  const [status, setStatus] = useState(null);
+  const [progress, setProgress] = useState(null);
+  const [detail, setDetail] = useState(null);
+
 
 
   useEffect(() => {
@@ -73,7 +79,7 @@ function App() {
     setMessages(data);
     setDocUploaded(ragData.has(id));
     setRagMode(ragData.has(id)); // auto enable RAG mode if document exists
-  }
+  };
 
   const updateChatName = async (id, newName) => {
     setSessions(prev => prev.map(s => (s.id === id ? { ...s, name: newName } : s)));
@@ -98,7 +104,7 @@ function App() {
       }
 
       return [[...messages, userMessage], userMessage];
-    }
+  };
 
   const sendMessage = async (customInput, metadata = {}) => {
     const messageToSend = typeof customInput === 'string' ? customInput : input;
@@ -181,7 +187,6 @@ function App() {
     setLoading(false);
   };
 
-
   const deleteChat = async (id) => {
     await window.chatAPI.deleteChat(id);
     setSessions(prev => prev.filter(s => s.id !== id));
@@ -203,7 +208,6 @@ function App() {
     await window.chatAPI.exportChat(chatId);
   };
 
-
   // Import a chat
   const handleImport = async () => {
     const result = await window.chatAPI.importChat();
@@ -212,7 +216,6 @@ function App() {
       setChatId(result.id);
     }
   };
-
 
   const handleDocumentUpload = async (e) => {
     const file = e.target.files[0];
@@ -298,8 +301,12 @@ function App() {
     sendMessage(summarizePrompt);
   };
 
-
   async function embedChunksLocally(chunks) {
+    await ensureEmbeddingModel(setDownloading, setStatus, setProgress, setDetail);
+    setDownloading(null);
+    setStatus(null);
+    setProgress(null);
+    setDetail(null);
     const embedded = [];
     console.log('🔍 Embedding chunks...');
     console.time('Embedding time');
@@ -326,8 +333,12 @@ function App() {
     return embedded;
   }
 
-
   const sendRAGQuestion = async (question) => {
+    await ensureEmbeddingModel(setDownloading, setStatus, setProgress, setDetail); 
+    setDownloading(null);
+    setStatus(null);
+    setProgress(null);
+    setDetail(null);
     if (!question.trim()) return;
 
     const data = ragData.get(chatId);
@@ -405,9 +416,6 @@ function App() {
     }
   };
 
-
-
-
   function renderWithThinking(text, sources = []) {
     const parts = text.split(/(<think>[\s\S]*?<\/think>)/g);
 
@@ -467,7 +475,23 @@ function App() {
         )}
       </>
     );
-  }
+  };
+
+  async function ensureEmbeddingModel() {
+    console.log('🔄 Checking for embedding model...');
+    const modelName = 'nomic-embed-text:latest';
+    const models = await window.chatAPI.getDownloadedModels();
+    const isPresent = models.some(m => (typeof m === 'string' ? m : m.name) === modelName);
+
+    if (isPresent) return;
+    console.log(`📥 Downloading embedding model: ${modelName}`);
+    setDownloading(modelName);
+    setStatus('starting');
+    setProgress(null);
+    setDetail(null);
+
+    await window.chatAPI.downloadModel(modelName);
+  };
 
 
 
@@ -484,105 +508,129 @@ function App() {
           </div>
         </div>
       )}
+
       {/* Main Chat Column */}
       <div className="flex flex-col flex-1 h-full">
 
-      {/* Header */}
-        <ChatHeader
-          darkMode={darkMode}
-          setDarkMode={setDarkMode}
-          handleExport={handleExport}
-          handleImport={handleImport}
-          setModelSelected={setModelSelected}
-        />
-
-      {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-6 space-y-4">
-          {!modelSelected ? (
-            <ModelSelector onSelect={setModelSelected} />
-                      ) : !chatId ? (
-              <div className="text-center mt-32 text-gray-600 dark:text-gray-400">
-                <h2 className="text-xl font-semibold mb-2">👋 {modelSelected} Model selected!</h2>
-                <p className="text-sm italic">Click <span className="font-semibold text-blue-500">"New Chat"</span> to ask me anything.</p>
-              </div> 
-              ): (
-            <>
-              {messages.map((m, i) => (
-                <div
-                  key={i}
-                  className={`max-w-lg px-5 py-3 rounded-2xl shadow-md transition-all duration-300 ${
-                    m.role === 'user'
-                      ? 'bg-[#a2bdf7] text-slate-900 dark:bg-gray-600 dark:text-white self-end ml-auto'
-                      : 'bg-[#dfe2e8] dark:bg-slate-800 text-black dark:text-white self-start mr-auto'
-                  }`}
-                >
-                  <div className="text-xs opacity-60 mb-1">
-                    <b>{m.role === 'user' ? 'You' : 'Bot'}:</b>{' '}
-                    {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                  <div className="prose dark:prose-invert max-w-none">
-                    {m.role === 'assistant'
-                      ? renderWithThinking(m.content, m.sources)
-                      : (
-                        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-                          {m.content}
-                        </ReactMarkdown>
-                      )
-                    }
-                  </div>
-                </div>
-              ))}
-              {loading && (
-                <div className="max-w-lg px-5 py-3 rounded-2xl bg-[#e6edf7] dark:bg-gray-700/60 text-black dark:text-white self-start mr-auto shadow-md">
-                  <b>assistant:</b> Typing...
-                </div>
-              )}
-              <div ref={messagesEndRef}></div>
-
-              <div className="flex justify-center mt-2">
-                <div className="inline-block text-xs font-mono px-4 py-2 text-gray-700 dark:text-gray-300 bg-white/40 dark:bg-gray-700/40 backdrop-blur rounded-md shadow">
-                  <p className="whitespace-pre-wrap text-center">
-                    🤖 Model: <span className="font-semibold">{modelSelected}</span> |
-                    🧮 Tokens: <span className="font-semibold">{stats.totalTokens}</span> |
-                    ⚡ Speed: <span className="font-semibold">{stats.tokensPerSecond}/s</span> |
-                    🧠 Context: <span className="font-semibold">{stats.contextTokens}</span>
-                  </p>
-                </div>
-              </div>
-            </>
-          )}
-        </main>
-
-      {/* Footer */}
-        {modelSelected && (
-          <ChatFooter
-            chatId={chatId}
-            input={input}
-            ragMode={ragMode}
-            setInput={setInput}
-            setRagMode={setRagMode}
-            sendMessage={sendMessage}
-            sendRAGQuestion={sendRAGQuestion}
-            handleDocumentUpload={handleDocumentUpload}
-            handleSummarizeDoc={handleSummarizeDoc}
-            loading={loading}
-            docUploaded={docUploaded}
-            setDocUploaded={setDocUploaded}
+        {/* Header */}
+          <ChatHeader
+            darkMode={darkMode}
+            setDarkMode={setDarkMode}
+            handleExport={handleExport}
+            handleImport={handleImport}
+            setModelSelected={setModelSelected}
           />
-        )}
-      </div>
+
+        {/* Main Content */}
+          <main className="flex-1 overflow-y-auto p-6 space-y-4">
+            {!modelSelected ? (
+              <ModelSelector onSelect={setModelSelected} />
+                        ) : !chatId ? (
+                <div className="text-center mt-32 text-gray-600 dark:text-gray-400">
+                  <h2 className="text-xl font-semibold mb-2">👋 {modelSelected} Model selected!</h2>
+                  <p className="text-sm italic">Click <span className="font-semibold text-blue-500">"New Chat"</span> to ask me anything.</p>
+                </div> 
+                ): (
+              <>
+                {messages.map((m, i) => (
+                  <div
+                    key={i}
+                    className={`max-w-lg px-5 py-3 rounded-2xl shadow-md transition-all duration-300 ${
+                      m.role === 'user'
+                        ? 'bg-[#a2bdf7] text-slate-900 dark:bg-gray-600 dark:text-white self-end ml-auto'
+                        : 'bg-[#dfe2e8] dark:bg-slate-800 text-black dark:text-white self-start mr-auto'
+                    }`}
+                  >
+                    <div className="text-xs opacity-60 mb-1">
+                      <b>{m.role === 'user' ? 'You' : 'Bot'}:</b>{' '}
+                      {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                    <div className="prose dark:prose-invert max-w-none">
+                      {m.role === 'assistant'
+                        ? renderWithThinking(m.content, m.sources)
+                        : (
+                          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                            {m.content}
+                          </ReactMarkdown>
+                        )
+                      }
+                    </div>
+                  </div>
+                ))}
+                {loading && (
+                  <div className="max-w-lg px-5 py-3 rounded-2xl bg-[#e6edf7] dark:bg-gray-700/60 text-black dark:text-white self-start mr-auto shadow-md">
+                    <b>assistant:</b> Typing...
+                  </div>
+                )}
+                <div ref={messagesEndRef}></div>
+
+                <div className="flex justify-center mt-2">
+                  <div className="inline-block text-xs font-mono px-4 py-2 text-gray-700 dark:text-gray-300 bg-white/40 dark:bg-gray-700/40 backdrop-blur rounded-md shadow">
+                    <p className="whitespace-pre-wrap text-center">
+                      🤖 Model: <span className="font-semibold">{modelSelected}</span> |
+                      🧮 Tokens: <span className="font-semibold">{stats.totalTokens}</span> |
+                      ⚡ Speed: <span className="font-semibold">{stats.tokensPerSecond}/s</span> |
+                      🧠 Context: <span className="font-semibold">{stats.contextTokens}</span>
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
+          </main>
+
+        {/* Footer */}
+          {modelSelected && (
+            <ChatFooter
+              chatId={chatId}
+              input={input}
+              ragMode={ragMode}
+              setInput={setInput}
+              setRagMode={setRagMode}
+              sendMessage={sendMessage}
+              sendRAGQuestion={sendRAGQuestion}
+              handleDocumentUpload={handleDocumentUpload}
+              handleSummarizeDoc={handleSummarizeDoc}
+              loading={loading}
+              docUploaded={docUploaded}
+              setDocUploaded={setDocUploaded}
+            />
+          )}
+        </div>
 
       {/* Sidebar */}
-      {modelSelected && (
-        <Sidebar
-          sessions={sessions}
-          chatId={chatId}
-          newChat={newChat}
-          switchChat={switchChat}
-          deleteChat={deleteChat}
-        />
-      )}
+        {modelSelected && (
+          <Sidebar
+            sessions={sessions}
+            chatId={chatId}
+            newChat={newChat}
+            switchChat={switchChat}
+            deleteChat={deleteChat}
+          />
+        )}
+
+      {/* ✅ Embed download progress modal here */}
+        {downloading && (
+          <DownloadProgressModal
+            modelName={downloading}
+            status={status}
+            progress={progress}
+            detail={detail}
+            onCancel={() => {
+              window.chatAPI.cancelDownload?.();
+              setDownloading(null);
+              setStatus(null);
+              setProgress(null);
+            }}
+            onDone={() => {
+              setDownloading(null);
+              setStatus(null);
+              setProgress(null);
+            }}
+          />
+        )}
     </div>
+
+
   );
 }
 
