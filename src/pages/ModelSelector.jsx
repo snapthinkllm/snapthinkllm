@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import DownloadProgressModal from '../ui-elements/DownloadProgressModal.jsx';
 import { modelRegistry } from '../models/modelRegistry';
+import { RefreshCw } from 'lucide-react';
 
 function ModelSelector({ onSelect }) {
   const [config, setConfig] = useState({ ram: 16, vram: 8 });
@@ -27,7 +28,7 @@ function ModelSelector({ onSelect }) {
 
       if (msg.status === 'done') {
         refreshDownloadedModels();
-        onSelect(msg.model); // move selection here so it's aligned with actual status
+        onSelect(msg.model);
       }
     });
 
@@ -35,7 +36,7 @@ function ModelSelector({ onSelect }) {
     refreshDownloadedModels();
 
     return () => {
-      window.chatAPI?.onModelStatus?.(() => {}); // remove listener safely
+      window.chatAPI?.onModelStatus?.(() => {});
     };
   }, []);
 
@@ -43,7 +44,7 @@ function ModelSelector({ onSelect }) {
     const hw = await window.chatAPI.getHardwareInfo();
     const rounded = {
       ram: hw.ram,
-      vram: hw.vram, // Round MB to GB
+      vram: hw.vram,
     };
     setConfig(rounded);
     updateSuggestions(rounded.ram, rounded.vram);
@@ -71,14 +72,12 @@ function ModelSelector({ onSelect }) {
     setProgress(null);
 
     try {
-      await window.chatAPI.downloadModel(model); // await the resolved promise after download
-      // Let onModelStatus update status to 'done'
+      await window.chatAPI.downloadModel(model);
     } catch (err) {
       console.error(err);
       setStatus('error');
     }
   };
-
 
   const handleCancelDownload = () => {
     window.chatAPI.cancelDownload?.();
@@ -90,45 +89,69 @@ function ModelSelector({ onSelect }) {
   const renderModelCard = (model, isCompatible, isDownloaded = false) => (
     <div
       key={model.name}
-      className={`p-4 rounded-xl shadow-md border transition ${
-        isCompatible
+      className={`p-3 rounded-lg shadow-sm border transition text-sm
+        ${isCompatible
           ? 'bg-blue-50 dark:bg-blue-900 text-blue-800 dark:text-blue-100 border-blue-200 dark:border-blue-700'
           : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700'
-      }`}
+        }`}
     >
-      <div className="flex items-center gap-3 mb-2">
-        <img src={model.logo} alt={model.company} className="w-10 h-10 rounded-md bg-white p-1 shadow-sm" />
+      <div className="flex items-center gap-2 mb-1">
+        <img src={model.logo} alt={model.company} className="w-8 h-8 rounded-md bg-white p-1 shadow-sm" />
         <div>
-          <div className="font-semibold">{model.name}</div>
-          <div className="text-xs text-gray-600 dark:text-gray-400">
-            {model.size} • {model.type}
-          </div>
+          <div className="font-semibold text-sm">{model.name}</div>
+          <div className="text-xs text-gray-600 dark:text-gray-400">{model.size} • {model.type}</div>
         </div>
       </div>
 
-      <div className="text-sm text-gray-700 dark:text-gray-300 mb-1">
-        Requires <b>{model.vram}GB VRAM</b>, <b>{model.recommendedRAM}GB RAM</b>
+      <div className="text-xs text-gray-700 dark:text-gray-300 mb-1">
+        <b>{model.vram}GB VRAM</b>, <b>{model.recommendedRAM}GB RAM</b>
       </div>
 
       {isDownloaded && (
-        <div className="text-green-600 dark:text-green-400 text-xs font-semibold mb-2">
+        <div className="text-green-600 dark:text-green-400 text-xs font-medium mb-1">
           ✅ Downloaded
         </div>
       )}
 
       <button
         disabled={!isCompatible}
-        onClick={() => onSelect(model.name)}
-        className={`w-full px-3 py-2 rounded-md font-medium transition ${
+        onClick={() => handleModelSelect(model.name)}
+        className={`w-full px-3 py-1.5 rounded-md font-medium text-sm transition ${
           isCompatible
             ? 'bg-blue-600 hover:bg-blue-700 text-white'
             : 'bg-gray-400 text-gray-100 cursor-not-allowed'
         }`}
       >
-        {isDownloaded ? isCompatible ?' Select': 'Incompatible' : isCompatible ? 'Select' : 'Incompatible'}
+        {isDownloaded ? (isCompatible ? 'Select' : 'Incompatible') : (isCompatible ? 'Select' : 'Incompatible')}
       </button>
     </div>
   );
+
+  const handleModelSelect = async (modelName) => {
+    const isDownloaded = downloadedModels.some(
+      (m) => (typeof m === 'string' ? m : m.name) === modelName
+    );
+
+    if (isDownloaded) {
+      onSelect(modelName);
+      return;
+    }
+
+    // Trigger download and show modal
+    setDownloading(modelName);
+    setStatus('starting');
+    setProgress(null);
+    setDetail(null);
+
+    try {
+      await window.chatAPI.downloadModel(modelName);
+      // onModelStatus listener will trigger onSelect when done
+    } catch (err) {
+      console.error('Download error:', err);
+      setStatus('error');
+    }
+  };
+
 
   return (
     <div className="p-6 text-gray-900 dark:text-white space-y-6">
@@ -163,12 +186,24 @@ function ModelSelector({ onSelect }) {
           />
         </label>
       </div>
-
+      
+      {/* User Downloaded Models */}
       {downloadedModels.length > 0 && (
         <div>
-          <h2 className="text-xl font-semibold mt-8 mb-2">📥 Downloaded Models</h2>
+          <div className="flex items-center justify-between mt-8 mb-2">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              📥 Downloaded Models
+            </h2>
+            <button
+              onClick={refreshDownloadedModels}
+              className="flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-300 hover:underline"
+            >
+              <RefreshCw size={16} className="animate-spin-once" />
+              Refresh
+            </button>
+          </div>
           <hr className="border-1 border-gray-500 dark:border-gray-500 mb-4" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
             {downloadedModels.map((downloaded) => {
               const name = typeof downloaded === 'string' ? downloaded : downloaded.name;
               const model = modelRegistry.find((m) => m.name === name);
@@ -179,70 +214,29 @@ function ModelSelector({ onSelect }) {
                 : true;
 
               if (model) {
-                return (
-                  <div
-                    key={key}
-                    className={`p-4 rounded-xl shadow-md border transition ${
-                      isCompatible
-                        ? 'bg-blue-50 dark:bg-blue-900 text-blue-800 dark:text-blue-100 border-blue-200 dark:border-blue-700'
-                        : 'bg-yellow-50 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-100 border-yellow-300 dark:border-yellow-700'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 mb-2">
-                      <img src={model.logo} alt={model.company} className="w-10 h-10 rounded-md bg-white p-1 shadow-sm" />
-                      <div>
-                        <div className="font-semibold">{model.name}</div>
-                        <div className="text-xs text-gray-600 dark:text-gray-400">
-                          {model.size} • {model.type}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-sm text-gray-700 dark:text-gray-300 mb-2">
-                      Requires <b>{model.vram}GB VRAM</b>, <b>{model.recommendedRAM}GB RAM</b>
-                    </div>
-                    <div className="text-green-600 dark:text-green-400 text-xs font-semibold mb-2">
-                    ✅ Downloaded
-                    </div>
-                    {!isCompatible && (
-                      <div className="text-xs text-yellow-700 dark:text-yellow-200 mb-2 font-medium">
-                        ⚠️ May not run well on your system
-                      </div>
-                    )}
-                    <button
-                      onClick={() => onSelect(model.name)}
-                      className={`w-full px-3 py-2 rounded-md font-medium transition ${
-                        isCompatible
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                          : 'bg-yellow-600 hover:bg-yellow-700 text-white'
-                      }`}
-                    >
-                       Select
-                    </button>
-                  </div>
-                );
+                return renderModelCard(model, isCompatible, true);
               }
 
-              // Unknown or custom model fallback
               return (
                 <div
                   key={key}
-                  className="p-4 rounded-xl border shadow-md bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-100"
+                  className="p-3 rounded-lg border shadow-sm bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-100 text-sm"
                 >
-                  <div className="mb-2 font-semibold">{String(name)}</div>
+                  <div className="mb-1 font-semibold text-sm">{String(name)}</div>
                   {downloaded.sizeRaw && (
-                    <div className="text-sm text-gray-700 dark:text-gray-300 mb-1">
+                    <div className="text-xs text-gray-700 dark:text-gray-300 mb-1">
                       Requires <b>{downloaded.sizeRaw} VRAM</b>
                     </div>
                   )}
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                     User Downloaded Model
                   </div>
-                  <div className="text-green-600 dark:text-green-400 text-xs font-semibold mb-2">
+                  <div className="text-green-600 dark:text-green-400 text-xs font-medium mb-1">
                     ✅ Downloaded
                   </div>
                   <button
                     onClick={() => onSelect(name)}
-                    className="w-full px-3 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium"
+                    className="w-full px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm"
                   >
                     Select
                   </button>
@@ -254,12 +248,11 @@ function ModelSelector({ onSelect }) {
       )}
 
 
-
       {/* Suggested Starter Models */}
       <div>
         <h2 className="text-xl font-semibold mt-8 mb-2">💡 Suggested Starter Models</h2>
         <hr className="border-1 border-gray-500 dark:border-gray-500 mb-4" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
           {suggestedModels.map((model) =>
             renderModelCard(
               model,
@@ -269,8 +262,8 @@ function ModelSelector({ onSelect }) {
           )}
         </div>
       </div>
-            
-      {/* Add custom model */}
+
+      {/* Custom Model Input */}
       <div className="space-y-2 mt-8">
         <h2 className="text-xl font-semibold mt-8 mb-2"><label className="block font-medium">Pull a new model from Ollama</label></h2>
         <hr className="border-1 border-gray-500 dark:border-gray-500 mb-4" />
@@ -291,7 +284,6 @@ function ModelSelector({ onSelect }) {
           </button>
         </div>
 
-        {/* Download progress modal */}
         {downloading && (
           <DownloadProgressModal
             modelName={downloading}

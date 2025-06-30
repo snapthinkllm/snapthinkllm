@@ -47,6 +47,7 @@ SnapThink is a powerful local chat UI powered by [Ollama](https://ollama.com) an
 | 📦 **Model Selector Screen** | Shows known models + hardware recommendations |
 | 📥 **Pull Models from Ollama** | Use custom model names (e.g., `mistral:7b-instruct`) |
 | ⏳ **Download Progress Modal** | Tracks and displays status with cancel support |
+| 🔄 **Cancel and resume download** |  next download with resumes where previous one left|
 | ✅ **Downloaded Models Listing** | Separates downloaded models from suggested ones |
 | ⚠️ **Manual Override** | Allows selecting incompatible models |
 | 🧠 **Hardware Detection** | Auto-detects RAM/VRAM via `systeminformation` |
