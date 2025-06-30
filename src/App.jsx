@@ -500,7 +500,12 @@ function App() {
         <main className="flex-1 overflow-y-auto p-6 space-y-4">
           {!modelSelected ? (
             <ModelSelector onSelect={setModelSelected} />
-          ) : (
+                      ) : !chatId ? (
+              <div className="text-center mt-32 text-gray-600 dark:text-gray-400">
+                <h2 className="text-xl font-semibold mb-2">👋 {modelSelected} Model selected!</h2>
+                <p className="text-sm italic">Click <span className="font-semibold text-blue-500">"New Chat"</span> to ask me anything.</p>
+              </div> 
+              ): (
             <>
               {messages.map((m, i) => (
                 <div

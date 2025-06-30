@@ -124,8 +124,8 @@ export default function ChatFooter({
         </button>
       </div>
 
-      <div className="text-center text-xs text-black dark:text-white font-mono font-extralight mt-2">
-        SnapThink LLM can make mistakes
+      <div className="text-center text-xs mt-2 text-gray-600 dark:text-gray-400 font-mono italic">
+         SnapThink LLM may occasionally be inaccurate or make mistakes.
       </div>
     </footer>
   );
