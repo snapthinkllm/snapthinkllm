@@ -273,7 +273,7 @@ function ModelSelector({ onSelect }) {
         <h2 className="text-xl font-semibold mt-8 mb-2">💡 Suggested Starter Models</h2>
         <hr className="border-1 border-gray-500 dark:border-gray-500 mb-4" />
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-          {suggestedModels.map((model) =>
+          {suggestedModels.slice(0, 7).map((model) =>
             renderModelCard(
               model,
               config.vram >= model.vram && config.ram >= model.recommendedRAM,

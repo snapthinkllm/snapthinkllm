@@ -55,4 +55,13 @@ export const modelRegistry = [
     recommendedRAM: 8,
     logo: './logos/deepseek.png',
   },
+  {
+    name: 'nomic-embed-text:latest',
+    company: 'Nomic AI',
+    size: '274 MB',
+    type: 'Embedding/RAG',
+    vram: 0.5,
+    recommendedRAM: 2,
+    logo: '/logos/nomic.png'
+  },
 ];
