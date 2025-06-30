@@ -49,6 +49,12 @@ function saveManifest(data) {
   }
 }
 
+function stripAnsi(input) {
+  return input
+    .replace(/\u001b\[.*?[@-~]/g, '')   // ESC[
+    .replace(/\u001b\?.*?[hl]/g, '')    // ESC?
+    .replace(/\r/g, '');                // carriage returns
+}
 // -------------------- IPC Chat handlers --------------------
 ipcMain.on('save-chat', (e, { id, messages }) => {
   try {
@@ -125,28 +131,32 @@ ipcMain.handle('delete-chat', (event, chatId) => {
 // -------------------- Model Download --------------------
 let currentPullProcess = null;
 
-ipcMain.handle('download-model', (event, model) => {
+ipcMain.handle('download-model', async (event, model) => {
   return new Promise((resolve, reject) => {
+    console.log(`[ollama] Downloading model: ${model}`);
     currentPullProcess = spawn('ollama', ['pull', model]);
+    const webContents = event.sender;
 
     currentPullProcess.stdout.on('data', (data) => {
-      const message = data.toString().trim();
-      const percentMatch = message.match(/(\d+(\.\d+)?)%/);
+      const raw = data.toString();
+      const clean = stripAnsi(raw).trim();
+      const lines = clean.split('\n');
+      const progressLine = lines.find(line => line.includes('pulling') && line.includes('%')) || clean;
+      const percentMatch = progressLine.match(/(\d+(\.\d+)?)%/);
       const progress = percentMatch ? parseFloat(percentMatch[1]) : null;
 
-      event.sender.send('model-status', {
+      webContents.send('model-status', {
         model,
         status: 'downloading',
-        detail: message,
+        detail: progressLine,
         progress,
       });
     });
 
     currentPullProcess.stderr.on('data', (data) => {
-      const message = data.toString().trim();
-      console.warn(`[ollama stderr] ${message}`);
-      // ⚠️ Don't treat as error — pass along as additional info
-      event.sender.send('model-status', {
+      const message = stripAnsi(data.toString().trim());
+      console.log(`[ollama stderr] ${message}`);
+      webContents.send('model-status', {
         model,
         status: 'downloading',
         detail: message,
@@ -157,16 +167,18 @@ ipcMain.handle('download-model', (event, model) => {
       currentPullProcess = null;
       if (code === 0) {
         console.log(`[ollama] ${model} download complete`);
-        event.sender.send('model-status', { model, status: 'done' });
-        resolve();
+        webContents.send('model-status', { model, status: 'done' });
+        resolve({ success: true });
       } else {
         console.error(`[ollama] Download failed with code ${code}`);
-        event.sender.send('model-status', { model, status: 'error' });
-        reject(new Error(`ollama pull exited with code ${code}`));
+        webContents.send('model-status', { model, status: 'error' });
+        reject(new Error('Download failed'));
       }
     });
   });
 });
+
+
 
 function parseSizeToGB(sizeStr) {
   const size = parseFloat(sizeStr);

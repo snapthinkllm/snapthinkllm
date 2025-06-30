@@ -8,23 +8,26 @@ function ModelSelector({ onSelect }) {
   const [downloading, setDownloading] = useState(null);
   const [status, setStatus] = useState(null);
   const [progress, setProgress] = useState(null);
-
+  const [detail, setDetail] = useState(null);
   const [downloadedModels, setDownloadedModels] = useState([]);
   const [suggestedModels, setSuggestedModels] = useState([]);
 
   useEffect(() => {
-    // Model status listener
     const unsubscribe = window.chatAPI?.onModelStatus((msg) => {
-      if (msg.model === downloading) {
-        setStatus(msg.status);
-        setProgress(msg.progress ?? null);
-        if (msg.status === 'done') {
-          setDownloading(null);
-          setStatus(null);
-          setProgress(null);
-          refreshDownloadedModels();
-          onSelect(msg.model);
-        }
+      console.log('Model status update:', msg, downloading);
+      if (msg.model?.startsWith(downloading)) return;
+
+      setStatus(msg.status);
+      if (msg.progress !== undefined) {
+        setProgress(msg.progress);
+      }
+      if (msg.detail){
+        setDetail(msg.detail);
+      }
+
+      if (msg.status === 'done') {
+        refreshDownloadedModels();
+        onSelect(msg.model); // move selection here so it's aligned with actual status
       }
     });
 
@@ -32,7 +35,7 @@ function ModelSelector({ onSelect }) {
     refreshDownloadedModels();
 
     return () => {
-      if (unsubscribe?.dispose) unsubscribe.dispose?.();
+      window.chatAPI?.onModelStatus?.(() => {}); // remove listener safely
     };
   }, []);
 
@@ -68,12 +71,14 @@ function ModelSelector({ onSelect }) {
     setProgress(null);
 
     try {
-      await window.chatAPI.downloadModel(model);
+      await window.chatAPI.downloadModel(model); // await the resolved promise after download
+      // Let onModelStatus update status to 'done'
     } catch (err) {
       console.error(err);
       setStatus('error');
     }
   };
+
 
   const handleCancelDownload = () => {
     window.chatAPI.cancelDownload?.();
@@ -293,6 +298,7 @@ function ModelSelector({ onSelect }) {
             status={status}
             progress={progress}
             onCancel={handleCancelDownload}
+            detail={detail}
             onDone={() => {
               setDownloading(null);
               setStatus(null);

@@ -63,6 +63,7 @@ function App() {
     setMessages([]);
     setSessions(prev => [...prev, { id, name: defaultName }]);
     setDocUploaded(false);
+    setRagMode(false);
     await window.chatAPI.renameChat({ id, name: defaultName });
   };
 
@@ -254,7 +255,7 @@ function App() {
       setRagMode(true);
 
       // ✅ Compose synthetic RAG summarization question
-      const prompt = `📄 Summarize the uploaded ${ext.toUpperCase()} document using its content. Highlight main sections, topics, and key takeaways.`;
+      const prompt = `📄 Summarize the uploaded ${ext.toUpperCase()} ${file.name} document using its content. Highlight main sections, topics, and key takeaways.`;
 
       const topChunks = embedded.map((item, index) => ({
         text: item.chunk,
