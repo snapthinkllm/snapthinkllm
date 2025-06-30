@@ -11,6 +11,15 @@ export const modelRegistry = [
     logo: './logos/gemma.png',
   },
   {
+    name: 'deepseek-r1:1.5b',
+    company: 'Deepseek',
+    size: '1.5B',
+    vram: 2.5, 
+    type: 'text',
+    recommendedRAM: 6,
+    logo: './logos/deepseek.png',
+  },
+  {
     name: 'gemma3:12b',
     company: 'Google',
     size: '12B',
