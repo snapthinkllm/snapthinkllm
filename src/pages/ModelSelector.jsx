@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import DownloadProgressModal from '../ui-elements/DownloadProgressModal.jsx';
 import { modelRegistry } from '../models/modelRegistry';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, MemoryStick, Cpu } from 'lucide-react';
 
 function ModelSelector({ onSelect }) {
   const [config, setConfig] = useState({ ram: 16, vram: 8 });
@@ -155,12 +155,26 @@ function ModelSelector({ onSelect }) {
 
   return (
     <div className="p-6 text-gray-900 dark:text-white space-y-6">
-      <h1 className="text-3xl font-bold">🧠 Select a Compatible LLM</h1>
-
+      <h1 className="text-3xl font-bold mb-6 flex items-center gap-1">
+        🧠 Select a Compatible LLM
+      </h1>
+      <hr className="border-1 border-gray-500 dark:border-gray-500 mb-4" />
       {/* RAM & VRAM Inputs */}
-      <div className="flex flex-wrap gap-4">
-        <label className="flex items-center gap-2">
-          RAM (GB):
+      <h2 className="text-xl font-semibold flex items-center gap-2 mb-1">
+        <Cpu className="w-6 h-6 text-blue-500" />
+        Hardware Info
+      </h2>
+      <p className="text-xs italic text-gray-500 dark:text-gray-400 mb-4 ml-1">
+        * Auto detected
+      </p>
+
+      <div className="bg-gray-50 dark:bg-zinc-900/40 border border-gray-200 dark:border-zinc-700 rounded-lg p-4 shadow-sm flex flex-wrap gap-6">
+        {/* RAM Input */}
+        <div className="flex flex-col">
+          <label className="flex items-center text-sm text-gray-700 dark:text-gray-300 font-medium mb-1">
+            <MemoryStick className="w-4 h-4 mr-1 text-blue-500" />
+            RAM (GB)
+          </label>
           <input
             type="number"
             value={config.ram}
@@ -169,11 +183,16 @@ function ModelSelector({ onSelect }) {
               setConfig({ ...config, ram: val });
               updateSuggestions(val, config.vram);
             }}
-            className="px-3 py-1 rounded border border-gray-400 bg-white dark:bg-gray-800"
+            className="px-3 py-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-zinc-800 text-sm shadow focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
           />
-        </label>
-        <label className="flex items-center gap-2">
-          VRAM (GB):
+        </div>
+
+        {/* VRAM Input */}
+        <div className="flex flex-col">
+          <label className="flex items-center text-sm text-gray-700 dark:text-gray-300 font-medium mb-1">
+            <Cpu className="w-4 h-4 mr-1 text-purple-500" />
+            VRAM (GB)
+          </label>
           <input
             type="number"
             value={config.vram}
@@ -182,10 +201,11 @@ function ModelSelector({ onSelect }) {
               setConfig({ ...config, vram: val });
               updateSuggestions(config.ram, val);
             }}
-            className="px-3 py-1 rounded border border-gray-400 bg-white dark:bg-gray-800"
+            className="px-3 py-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-zinc-800 text-sm shadow focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
           />
-        </label>
+        </div>
       </div>
+
       
       {/* User Downloaded Models */}
       {downloadedModels.length > 0 && (
