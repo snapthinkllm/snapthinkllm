@@ -608,6 +608,7 @@ function App() {
             newChat={newChat}
             switchChat={switchChat}
             deleteChat={deleteChat}
+            updateChatName={updateChatName}
           />
         )}
 
