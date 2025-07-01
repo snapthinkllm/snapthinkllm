@@ -16,7 +16,9 @@ function createWindow() {
     },
   });
 
-  if (process.env.NODE_ENV === 'development') {
+  win.setMenu(null);
+
+  if (false && process.env.NODE_ENV === 'development') {
     win.loadURL('http://localhost:5173');
     win.webContents.openDevTools();
   } else {
@@ -55,6 +57,7 @@ function stripAnsi(input) {
     .replace(/\u001b\?.*?[hl]/g, '')    // ESC?
     .replace(/\r/g, '');                // carriage returns
 }
+
 // -------------------- IPC Chat handlers --------------------
 ipcMain.on('save-chat', (e, { id, messages }) => {
   try {
@@ -304,8 +307,47 @@ ipcMain.handle('import-chat', async () => {
     }
   });
 
+// ----------------------- Ollama Installation Check --------------------
+const isOllamaInstalled = () => {
+  return new Promise((resolve) => {
+    exec('ollama --version', (error) => {
+      resolve(!error);
+    });
+  });
+};
+
+const promptUserToInstallOllama = async () => {
+  const choice = await dialog.showMessageBox({
+    type: 'warning',
+    title: 'Ollama Not Found',
+    message: 'Ollama is required to run SnapThink. It doesn’t appear to be installed.',
+    detail: 'Would you like to install Ollama now, or proceed anyway if you already have it?',
+    buttons: ['Install Ollama', 'Proceed Anyway', 'Exit'],
+    defaultId: 0,
+    cancelId: 2,
+  });
+
+  if (choice.response === 0) {
+    shell.openExternal('https://ollama.com/download');
+    return false; // Don't launch SnapThink yet
+  } else if (choice.response === 1) {
+    return true; // Proceed anyway
+  }
+
+  // Exit if "Exit"
+  app.quit();
+  return false;
+};
+
 // -------------------- App Lifecycle --------------------
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  const installed = await isOllamaInstalled();
+
+  if (!installed) {
+    const shouldProceed = await promptUserToInstallOllama();
+    if (!shouldProceed) return;
+  }
+
   createWindow();
 
   app.on('activate', () => {

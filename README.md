@@ -102,3 +102,9 @@ SnapThink is a powerful local chat UI powered by [Ollama](https://ollama.com) an
 - This app doesn't send any data to the internet unless the LLM model you're using does so (e.g., community-created models).
 - All features run 100% offline.
 
+
+
+Generate Exe:
+npm install --save-dev electron-builder 
+npm run build
+npm run dist
