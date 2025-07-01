@@ -291,7 +291,7 @@ function App() {
   const handleSummarizeDoc = () => {
     const data = ragData.get(chatId);
     if (!data) {
-      alert('❌ No document found for summarization.');
+      setToast('❌ No document found for summarization. Please upload a document first.');
       return;
     }
 
@@ -302,11 +302,9 @@ function App() {
   };
 
   async function embedChunksLocally(chunks) {
+    console.log('🔄 Ensuring embedding model is ready...',downloading, status, progress, detail);
     await ensureEmbeddingModel(setDownloading, setStatus, setProgress, setDetail);
-    setDownloading(null);
-    setStatus(null);
-    setProgress(null);
-    setDetail(null);
+ 
     const embedded = [];
     console.log('🔍 Embedding chunks...');
     console.time('Embedding time');
@@ -335,10 +333,7 @@ function App() {
 
   const sendRAGQuestion = async (question) => {
     await ensureEmbeddingModel(setDownloading, setStatus, setProgress, setDetail); 
-    setDownloading(null);
-    setStatus(null);
-    setProgress(null);
-    setDetail(null);
+  
     if (!question.trim()) return;
 
     const data = ragData.get(chatId);
@@ -487,12 +482,20 @@ function App() {
     console.log(`📥 Downloading embedding model: ${modelName}`);
     setDownloading(modelName);
     setStatus('starting');
-    setProgress(null);
-    setDetail(null);
 
     await window.chatAPI.downloadModel(modelName);
+    setDownloading(null);
+    setStatus(null);
+    setProgress(null);
+
   };
 
+  const handleCancelDownload = () => {
+    window.chatAPI.cancelDownload?.();
+    setDownloading(null);
+    setStatus(null);
+    setProgress(null);
+  };
 
 
 
@@ -615,12 +618,7 @@ function App() {
             status={status}
             progress={progress}
             detail={detail}
-            onCancel={() => {
-              window.chatAPI.cancelDownload?.();
-              setDownloading(null);
-              setStatus(null);
-              setProgress(null);
-            }}
+            onCancel={handleCancelDownload}
             onDone={() => {
               setDownloading(null);
               setStatus(null);

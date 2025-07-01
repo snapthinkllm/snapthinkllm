@@ -5,7 +5,7 @@ export default function DownloadProgressModal({ modelName, status,  progress, de
   const getStatusText = () => {
     if (status === 'done') return '✅ Download complete!';
     if (status === 'error') return '❌ Error downloading model.';
-    return progress !== null ? `Downloading... ${progress.toFixed(1)}%` : 'Starting download...';
+    return progress !== null ? `Downloading... ${progress.toFixed(1)}%` : 'Please wait model download in progress...';
   };
 
   const getProgressWidth = () => {
