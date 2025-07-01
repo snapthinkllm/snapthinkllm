@@ -31,13 +31,20 @@ export default function Sidebar({
     setEditedName('');
   };
 
-const saveChatName = async (id) => {
-  const name = editedName.trim();
-  if (name && name !== sessions.find((s) => s.id === id)?.name) {
-    await updateChatName(id, name);  // ✅ Use your existing function
-  }
-  cancelRename();
-};
+  const saveChatName = async (id) => {
+    const name = editedName.trim();
+    if (name && name !== sessions.find((s) => s.id === id)?.name) {
+      await updateChatName(id, name);  // ✅ Use your existing function
+    }
+    cancelRename();
+  };
+
+  const sortedSessions = [...sessions].sort((a, b) => {
+    const tA = Number(a.id?.split('-')[1] || 0);
+    const tB = Number(b.id?.split('-')[1] || 0);
+    return tB - tA; // most recent first
+  });
+
 
 
   return (
@@ -50,7 +57,7 @@ const saveChatName = async (id) => {
           + New Chat
         </button>
         <div className="flex-1 overflow-y-auto space-y-2">
-          {sessions.map((s) => (
+          {sortedSessions.map((s) => (
             <div key={s.id} className="flex items-center justify-between group">
               {editingChatId === s.id ? (
                 <input
