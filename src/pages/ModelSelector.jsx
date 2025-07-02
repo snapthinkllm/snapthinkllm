@@ -86,7 +86,7 @@ function ModelSelector({ onSelect }) {
     setProgress(null);
   };
 
-  const renderModelCard = (model, isCompatible, isDownloaded = false) => (
+  const renderModelCard = (model, isCompatible, isDownloaded = false, isServiceOnly) => (
     <div
       key={model.name}
       className={`p-3 rounded-lg shadow-sm border transition text-sm
@@ -114,16 +114,33 @@ function ModelSelector({ onSelect }) {
       )}
 
       <button
-        disabled={!isCompatible}
         onClick={() => handleModelSelect(model.name)}
-        className={`w-full px-3 py-1.5 rounded-md font-medium text-sm transition ${
-          isCompatible
+        disabled={isServiceOnly}
+        className={`w-full px-3 py-1.5 rounded-md font-medium text-sm transition ${ 
+          isServiceOnly ? 'bg-gray-400 text-gray-100 cursor-not-allowed'
+          : isCompatible
             ? 'bg-blue-600 hover:bg-blue-700 text-white'
-            : 'bg-gray-400 text-gray-100 cursor-not-allowed'
+            : 'bg-yellow-500 hover:bg-yellow-600 text-white'
         }`}
       >
-        {isDownloaded ? (isCompatible ? 'Select' : 'Incompatible') : (isCompatible ? 'Select' : 'Incompatible')}
+      {isServiceOnly ? 'Service-only': isDownloaded
+          ? isCompatible
+            ? 'Select'
+            : 'Force Select'
+          : isCompatible
+            ? 'Select'
+            : 'Incompatible'}
       </button>
+      {!isCompatible && (
+        <p className="text-xs text-yellow-500 mt-1">
+          ⚠️ May not run properly on this hardware
+        </p>
+      )}
+      {isServiceOnly && (
+        <div className="text-yellow-600 dark:text-yellow-400 text-xs mt-1 italic">
+          ⚠️ Not intended for direct user interaction
+        </div>
+      )}
     </div>
   );
 
@@ -233,8 +250,11 @@ function ModelSelector({ onSelect }) {
                 ? config.vram >= model.vram && config.ram >= model.recommendedRAM
                 : true;
 
+              const isServiceOnly = model?.interactive === false;
+
+
               if (model) {
-                return renderModelCard(model, isCompatible, true);
+                return renderModelCard(model, isCompatible, true, isServiceOnly);
               }
 
               return (

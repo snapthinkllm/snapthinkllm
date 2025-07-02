@@ -8,6 +8,7 @@ export const modelRegistry = [
     vram: 6,
     type: 'text',
     recommendedRAM: 8,
+    interactive: true, 
     logo: './logos/gemma.png',
   },
   {
@@ -17,6 +18,7 @@ export const modelRegistry = [
     vram: 2.5, 
     type: 'text',
     recommendedRAM: 6,
+    interactive: true,
     logo: './logos/deepseek.png',
   },
   {
@@ -26,6 +28,7 @@ export const modelRegistry = [
     vram: 12,
     type: 'text',
     recommendedRAM: 16,
+    interactive: true,
     logo: './logos/gemma.png',
   },
   {
@@ -35,6 +38,7 @@ export const modelRegistry = [
     vram: 8,
     type: 'text',
     recommendedRAM: 16,
+    interactive: true,
     logo: './logos/ollama.png',
   },
   {
@@ -44,6 +48,7 @@ export const modelRegistry = [
     vram: 6,
     type: 'code',
     recommendedRAM: 12,
+    interactive: true,
     logo: './logos/ollama.png',
   },
   {
@@ -53,6 +58,7 @@ export const modelRegistry = [
     vram: 12,
     type: 'text',
     recommendedRAM: 8,
+    interactive: true,
     logo: './logos/mistral.png',
   },
   {
@@ -62,6 +68,7 @@ export const modelRegistry = [
     vram: 4.7,
     type: 'text',
     recommendedRAM: 8,
+    interactive: true,
     logo: './logos/deepseek.png',
   },
   {
@@ -71,6 +78,8 @@ export const modelRegistry = [
     type: 'Embedding/RAG',
     vram: 0.5,
     recommendedRAM: 2,
-    logo: '/logos/nomic.png'
+    logo: '/logos/nomic.png',
+    interactive: false, 
+    note: 'Service-only embedding model. Not intended for direct user use.'
   },
 ];
