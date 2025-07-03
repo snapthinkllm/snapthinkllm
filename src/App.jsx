@@ -538,10 +538,10 @@ function App() {
                 {messages.map((m, i) => (
                   <div
                     key={i}
-                    className={`max-w-lg px-5 py-3 rounded-2xl shadow-md transition-all duration-300 ${
+                     className={`px-5 py-3 rounded-2xl shadow-md transition-all duration-300 ${
                       m.role === 'user'
-                        ? 'bg-[#a2bdf7] text-slate-900 dark:bg-gray-600 dark:text-white self-end ml-auto'
-                        : 'bg-[#dfe2e8] dark:bg-slate-800 text-black dark:text-white self-start mr-auto'
+                         ? 'max-w-lg bg-[#a2bdf7] text-slate-900 dark:bg-gray-600 dark:text-white self-end ml-auto'
+                        : 'max-w-4xl bg-[#dfe2e8] dark:bg-slate-800 text-black dark:text-white self-start'
                     }`}
                   >
                     <div className="text-xs opacity-60 mb-1">
