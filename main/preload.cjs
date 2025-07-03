@@ -2,7 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('chatAPI', {
   // Save a chat session with an ID
-  saveChat: ({ id, messages, docs = [] }) => ipcRenderer.send('save-chat', { id, messages, docs }),
+  saveChat: ({ id, messages = [], docs = [] }) => ipcRenderer.send('save-chat', { id, messages, docs }),
 
   // Load a chat session by ID
   loadChat: (id) => ipcRenderer.invoke('load-chat', id),
@@ -41,5 +41,7 @@ contextBridge.exposeInMainWorld('chatAPI', {
   ipcRenderer.send('persist-doc-metadata', { chatId, docsMetadata }),
 
   loadDocMetadata: (chatId) => ipcRenderer.invoke('load-doc-metadata', chatId),
+
+  updateChatDocs: ({ chatId, docs }) => ipcRenderer.send('update-chat-docs', { chatId, docs }),
 
 });

@@ -59,20 +59,31 @@ function stripAnsi(input) {
 }
 
 // -------------------- IPC Chat handlers --------------------
-ipcMain.on('save-chat', (e, { id, messages, docs = [] }) => {
+ipcMain.on('save-chat', (e, { id, messages = [] }) => {
   try {
     const chatDir = path.join(chatsDir, id);
     fs.mkdirSync(chatDir, { recursive: true });
 
-    const chatData = { messages, docs };
     const filePath = path.join(chatDir, 'chat.json');
-    fs.writeFileSync(filePath, JSON.stringify(chatData, null, 2));
 
-    console.log(`✅ Saved chat "${id}" with ${messages.length} messages.`);
+    let existing = { messages: [], docs: [] };
+    if (fs.existsSync(filePath)) {
+      existing = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    }
+
+    const updated = {
+      ...existing,
+      messages, // replace messages
+      // keep docs as-is
+    };
+
+    fs.writeFileSync(filePath, JSON.stringify(updated, null, 2));
+    console.log(`✅ Saved chat "${id}" with ${messages.length} messages (docs preserved: ${existing.docs?.length || 0})`);
   } catch (err) {
     console.error(`❌ Error saving chat (${id}):`, err);
   }
 });
+
 
 ipcMain.handle('load-chat', (e, id) => {
   try {
@@ -422,6 +433,31 @@ ipcMain.handle('load-doc-metadata', (event, chatId) => {
   } catch (err) {
     console.error(`❌ Failed to load doc metadata for chat ${chatId}:`, err);
     return [];
+  }
+});
+
+
+ipcMain.on('update-chat-docs', (e, { chatId, docs }) => {
+  try {
+    const chatDir = path.join(chatsDir, chatId);
+    fs.mkdirSync(chatDir, { recursive: true });
+
+    const filePath = path.join(chatDir, 'chat.json');
+
+    let existing = { messages: [], docs: [] };
+    if (fs.existsSync(filePath)) {
+      existing = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    }
+
+    const updated = {
+      ...existing,
+      docs, // overwrite only the docs
+    };
+
+    fs.writeFileSync(filePath, JSON.stringify(updated, null, 2));
+    console.log(`✅ Updated docs for chat "${chatId}", total: ${docs.length}`);
+  } catch (err) {
+    console.error(`❌ Failed to update docs for chat "${chatId}":`, err);
   }
 });
 

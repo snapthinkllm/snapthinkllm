@@ -587,6 +587,7 @@ function App() {
     docsMetadata.push({ id: docId, name: file.name, ext });
 
     console.log(`📄 Persisting doc metadata for ${chatId}:`, docsMetadata);
+    await window.chatAPI.updateChatDocs({ chatId, docs: docsMetadata });
 
     await window.chatAPI.persistDocMetadata({ chatId, docsMetadata });
 
