@@ -18,7 +18,7 @@ function createWindow() {
 
   win.setMenu(null);
 
-  if (false && process.env.NODE_ENV === 'development') {
+  if (true && process.env.NODE_ENV === 'development') {
     win.loadURL('http://localhost:5173');
     win.webContents.openDevTools();
   } else {

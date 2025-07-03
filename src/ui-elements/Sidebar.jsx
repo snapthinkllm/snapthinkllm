@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import ConfirmModal from './ConfirmModal'; // adjust the path if needed
-import { Pencil } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MessageSquarePlus, Grid } from 'lucide-react';
+import ChatActions from './sidebarComponents/ChatActions.jsx';
+import WorkspaceActions from './sidebarComponents/WorkspaceActions'; // placeholder for other features
 
 export default function Sidebar({
   sessions,
@@ -8,127 +9,77 @@ export default function Sidebar({
   newChat,
   switchChat,
   deleteChat,
-  updateChatName
+  updateChatName,
+  collapsed,
+  setCollapsed
 }) {
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [chatToDelete, setChatToDelete] = useState(null);
-  const [editingChatId, setEditingChatId] = useState(null);
-  const [editedName, setEditedName] = useState('');
+  const [activePanel, setActivePanel] = useState('chat'); // or 'workspace', 'settings', etc.
 
-  const handleConfirm = () => {
-    deleteChat(chatToDelete.id);
-    setShowConfirm(false);
-    setChatToDelete(null);
+  const handleMiniIconClick = (panel) => {
+    setActivePanel(panel);
+    setCollapsed(false);
   };
 
-  const startRename = (id, currentName) => {
-    setEditingChatId(id);
-    setEditedName(currentName);
-  };
-
-  const cancelRename = () => {
-    setEditingChatId(null);
-    setEditedName('');
-  };
-
-  const saveChatName = async (id) => {
-    const name = editedName.trim();
-    if (name && name !== sessions.find((s) => s.id === id)?.name) {
-      await updateChatName(id, name);  // ✅ Use your existing function
+  const renderPanel = () => {
+    switch (activePanel) {
+      case 'chat':
+        return (
+          <ChatActions
+            sessions={sessions}
+            chatId={chatId}
+            newChat={newChat}
+            switchChat={switchChat}
+            deleteChat={deleteChat}
+            updateChatName={updateChatName}
+            collapsed={collapsed}
+          />
+        );
+      case 'workspace':
+        return <WorkspaceActions />; // swap in your real component
+      default:
+        return null;
     }
-    cancelRename();
   };
-
-  const sortedSessions = [...sessions].sort((a, b) => {
-    const tA = Number(a.id?.split('-')[1] || 0);
-    const tB = Number(b.id?.split('-')[1] || 0);
-    return tB - tA; // most recent first
-  });
-
-
 
   return (
-    <>
-      <aside className="w-64 border-l border-gray-200 dark:border-gray-700 bg-[#f4f7fb] dark:bg-gray-800/80 backdrop-blur p-4 space-y-4 flex flex-col">
+    <aside
+      className={`transition-all duration-300 ${
+        collapsed ? 'w-16 px-2' : 'w-64 p-4'
+      } border-l border-gray-200 dark:border-gray-700 bg-[#f4f7fb] dark:bg-gray-800/80 backdrop-blur space-y-4 flex flex-col`}
+    >
+      {/* Collapse / Expand Toggle */}
+      <div className="flex justify-end">
         <button
-          onClick={newChat}
-          className="w-full bg-gradient-to-r from-[#6366f1] to-[#818cf8] text-white py-2 rounded-lg hover:from-[#4f46e5] hover:to-[#6366f1] shadow"
+          onClick={() => setCollapsed(!collapsed)}
+          className="flex items-center gap-1 px-2 py-1 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 shadow hover:bg-zinc-100 dark:hover:bg-zinc-600 transition"
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
-          + New Chat
+          {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          {!collapsed && <span className="text-xs font-medium">Collapse</span>}
         </button>
-        <div className="flex-1 overflow-y-auto space-y-2">
-          {sortedSessions.map((s) => (
-            <div key={s.id} className="flex items-center justify-between group">
-              {editingChatId === s.id ? (
-                <input
-                  autoFocus
-                  value={editedName}
-                  onChange={(e) => setEditedName(e.target.value)}
-                  onBlur={() => saveChatName(s.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') saveChatName(s.id);
-                    if (e.key === 'Escape') cancelRename();
-                  }}
-                  className={`flex-1 text-sm px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    s.id === chatId
-                      ? 'bg-[#d6dfff] dark:bg-purple-600 text-black dark:text-white font-semibold'
-                      : 'bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100'
-                  }`}
-                />
-              ) : (
-                <button
-                  onClick={() => switchChat(s.id)}
-                  onDoubleClick={() => startRename(s.id, s.name)}
-                  className={`flex-1 text-left px-4 py-2 rounded-lg group-hover:pr-2 truncate ${
-                    s.id === chatId
-                      ? 'bg-[#d6dfff] dark:bg-purple-600 text-black dark:text-white font-semibold'
-                      : 'hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-100'
-                  }`}
-                >
-                  <span className="truncate">{s.name}</span>
-                </button>
-              )}
+      </div>
 
-              {editingChatId !== s.id && (
-                <>
-                  <button
-                    className="text-gray-500 hover:text-blue-600 dark:hover:text-blue-300 text-sm ml-2 hidden group-hover:inline"
-                    title="Rename chat"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      startRename(s.id, s.name);
-                    }}
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  <button
-                    className="text-red-500 hover:text-red-700 text-sm ml-1"
-                    title="Delete chat"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setChatToDelete(s);
-                      setShowConfirm(true);
-                    }}
-                  >
-                    🗙
-                  </button>
-                </>
-              )}
-            </div>
-          ))}
+      {/* Mini icons (only when collapsed) */}
+      {collapsed && (
+        <div className="space-y-2 flex flex-col items-center">
+          <button
+            onClick={() => handleMiniIconClick('chat')}
+            className="p-2 rounded-lg bg-gradient-to-r from-[#6366f1] to-[#818cf8] text-white shadow hover:from-[#4f46e5] hover:to-[#6366f1]"
+            title="Chat Actions"
+          >
+            <MessageSquarePlus size={18} />
+          </button>
+          <button onClick={() => handleMiniIconClick('workspace')} title="Workspace">
+            <Grid size={18} />
+          </button>
+
+          {/* You can add more mini icons here */}
+          {/* <button onClick={() => handleMiniIconClick('workspace')} title="Workspaces">...</button> */}
         </div>
-      </aside>
+      )}
 
-      <ConfirmModal
-        show={showConfirm}
-        title={`Delete "${chatToDelete?.name}"?`}
-        message="This action cannot be undone."
-        onCancel={() => {
-          setShowConfirm(false);
-          setChatToDelete(null);
-        }}
-        onConfirm={handleConfirm}
-      />
-    </>
+      {/* Expanded panel */}
+      {!collapsed && renderPanel()}
+    </aside>
   );
 }

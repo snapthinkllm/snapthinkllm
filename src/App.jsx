@@ -32,7 +32,7 @@ function App() {
   const [status, setStatus] = useState(null);
   const [progress, setProgress] = useState(null);
   const [detail, setDetail] = useState(null);
-
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
 
   useEffect(() => {
@@ -531,8 +531,10 @@ function App() {
                         ) : !chatId ? (
                 <div className="text-center mt-32 text-gray-600 dark:text-gray-400">
                   <h2 className="text-xl font-semibold mb-2">👋 {modelSelected} Model selected!</h2>
-                  <p className="text-sm italic">Click <span className="font-semibold text-blue-500">"New Chat"</span> to ask me anything.</p>
-                </div> 
+                  <p className="text-sm italic">
+                    Click the <span className="font-semibold text-blue-500">chat icon</span> on the sidebar to get started.
+                  </p>
+                </div>
                 ): (
               <>
                 {messages.map((m, i) => (
@@ -609,6 +611,8 @@ function App() {
             switchChat={switchChat}
             deleteChat={deleteChat}
             updateChatName={updateChatName}
+            collapsed={sidebarCollapsed}
+            setCollapsed={setSidebarCollapsed}
           />
         )}
 
