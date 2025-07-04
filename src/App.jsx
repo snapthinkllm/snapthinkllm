@@ -13,6 +13,7 @@ import { v4 as uuidv4 } from 'uuid'
 function App() {
   const [chatId, setChatId] = useState('');
   const [messages, setMessages] = useState([]);
+  const [sessionDocs, setSessionDocs] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -49,11 +50,13 @@ function App() {
   }, [darkMode]);
 
   useEffect(() => {  
+    console.log('🔥 useEffect for listChats triggered',sessions);
     window.chatAPI.listChats().then(setSessions);
   }, []);
 
   useEffect(() => {
     if (chatId) {
+      console.log(`🔄 Loading chat ${chatId}...`);
       window.chatAPI.loadChat(chatId).then(setMessages);
     }
   }, [chatId]);
@@ -74,35 +77,39 @@ function App() {
   };
 
   const switchChat = async (id) => {
-    setChatId(id);
 
-    // Load chat messages
-    const data = await window.chatAPI.loadChat(id);
-    console.log('🔄 Loaded chat data:', data);
-    setMessages(data);
+    // Load chat messages + docs (with metadata) via preload
+    const { messages = [], docs = [] } = await window.chatAPI.loadChat(id);
+    console.log(`🔄 Switched to chat ${id}. Messages:`, messages, 'Docs:', docs);
 
-    // Load doc metadata
-    const docMetaPath = `snapthink_data/chat_sessions/${id}/docs/metadata.json`;
-    try {
-      const res = await fetch(`file://${docMetaPath}`);
-      const docsMetadata = await res.json();
-      console.log(`📄 Loaded doc metadata for ${id}:`, docsMetadata);
+    setMessages(messages);
+    setSessionDocs(docs);
+    
+    // If there are docs, load full chunks & embeddings from disk
+    if (docs.length > 0) {
+      try {
+        const loadedDocs = await loadSessionDocs(id, docs);
+        const chunks = loadedDocs.flatMap(doc => doc.chunks);
+        const embeddings = loadedDocs.flatMap(doc => doc.embeddings);
 
-      const docs = await loadSessionDocs(id, docsMetadata);
-      const chunks = docs.flatMap(doc => doc.chunks);
-      const embeddings = docs.flatMap(doc => doc.embeddings);
-
-      setRagData(prev => new Map(prev).set(id, {
-        chunks,
-        embedded: embeddings,
-        fileName: docs.map(d => d.name).join(', '),
-      }));
-      setRagMode(true);
-      setDocUploaded(true);
-    } catch (err) {
-      console.warn(`⚠️ No metadata found for chat ${id}`, err);
+        setRagData(prev => new Map(prev).set(id, {
+          chunks,
+          embedded: embeddings,
+          fileName: loadedDocs.map(d => d.name).join(', '),
+        }));
+        setRagMode(true);
+        setDocUploaded(true);
+        setChatId(id);
+      } catch (err) {
+        console.warn(`⚠️ Failed to load RAG data for chat ${id}:`, err);
+        setRagMode(false);
+        setDocUploaded(false);
+        setChatId(id);
+      }
+    } else {
       setRagMode(false);
       setDocUploaded(false);
+      setChatId(id);
     }
   };
 
@@ -128,7 +135,7 @@ function App() {
         };
         return [[...messages, contextMessage, userMessage], userMessage];
       }
-
+      console.log('📄 No sources provided, sending user message only', messages);
       return [[...messages, userMessage], userMessage];
   };
 
@@ -142,6 +149,7 @@ function App() {
 
     // Show only userMessage in UI
     const updatedUI = [...messages, userMessage];
+    console.log('📤 Sending message:', updatedUI);
     setMessages(updatedUI);
     setInput('');
     setLoading(true);
@@ -643,7 +651,7 @@ function App() {
                 </div>
                 ): (
               <>
-                {messages.map((m, i) => (
+                {Array.isArray(messages) && messages.map((m, i) => (
                   <div
                     key={i}
                      className={`px-5 py-3 rounded-2xl shadow-md transition-all duration-300 ${

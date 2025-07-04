@@ -84,36 +84,58 @@ ipcMain.on('save-chat', (e, { id, messages = [] }) => {
   }
 });
 
-
 ipcMain.handle('load-chat', (e, id) => {
   try {
+    console.log(`🔄 Loading chat ${id}...`, chatsDir);
     const filePath = path.join(chatsDir, id, 'chat.json');
     if (fs.existsSync(filePath)) {
-      return JSON.parse(fs.readFileSync(filePath));
+      const chat = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      return {
+        messages: Array.isArray(chat.messages) ? chat.messages : [],
+        docs: Array.isArray(chat.docs) ? chat.docs : [],
+      };
     }
-    return [];
   } catch (e) {
-    console.error(`Error loading chat (${id}):`, e);
-    return [];
+    console.error(`❌ Error loading chat (${id}):`, e);
   }
+
+  // Fallback: always return a valid shape
+  return { messages: [], docs: [] };
 });
+
+
 
 ipcMain.handle('list-chats', () => {
   try {
-    const files = fs.readdirSync(chatsDir).filter(f => f.endsWith('.json') && f !== 'chats.json');
-    const manifest = loadManifest();
-    return files.map(file => {
-      const id = path.basename(file, '.json');
-      return {
-        id,
-        name: manifest[id] || id,
-      };
+    const manifestPath = path.join(chatsDir, 'chats.json');
+    const manifest = fs.existsSync(manifestPath)
+      ? JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
+      : {};
+
+    const chatIds = fs.readdirSync(chatsDir).filter(f => {
+      const stat = fs.statSync(path.join(chatsDir, f));
+      return stat.isDirectory();
+    });
+
+    return chatIds.map((id) => {
+      const chatPath = path.join(chatsDir, id, 'chat.json');
+      let docs = [];
+      let name = manifest[id] || id;  // ✅ Prefer manifest name
+
+      if (fs.existsSync(chatPath)) {
+        const chatData = JSON.parse(fs.readFileSync(chatPath));
+        docs = chatData.docs || [];
+      }
+
+      console.log(`📂 Loaded chat "${id}" with ${docs.length} docs and name "${name}"`);
+      return { id, name, docs };
     });
   } catch (e) {
-    console.error('Error listing chats:', e);
+    console.error('❌ Error listing chats:', e);
     return [];
   }
 });
+
 
 ipcMain.handle('rename-chat', (event, { id, name }) => {
   try {
