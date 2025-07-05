@@ -9,6 +9,8 @@ import ChatFooter from './ui-elements/ChatFooter';
 import { chunkText } from './utils/chunkText';
 import DownloadProgressModal from './ui-elements/DownloadProgressModal';
 import { v4 as uuidv4 } from 'uuid'
+import { useChatManager } from './hooks/useChatManager'; 
+
 
 function App() {
   const [chatId, setChatId] = useState('');
@@ -35,6 +37,21 @@ function App() {
   const [detail, setDetail] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
+  const {
+    newChat,
+    switchChat,
+    updateChatName,
+    deleteChat,
+    loadSessionDocs,
+  } = useChatManager({
+    setChatId,
+    setMessages,
+    setSessionDocs,
+    setRagMode,
+    setDocUploaded,
+    setRagData,
+    setSessions,
+  });
 
   useEffect(() => {
     if (toast) {
@@ -68,70 +85,6 @@ function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  const newChat = async () => {
-    console.log('🆕 Creating new chat session...');
-    const id = `chat-${Date.now()}`;
-    const defaultName = 'New Chat';
-
-    // Set initial states
-    setChatId(id);
-    setMessages([]);
-    setSessionDocs([]);
-    setDocUploaded(false);
-    setRagMode(false);
-    console.log(`🆕 New chat created with ID: ${id}`);
-    // Add to UI
-    setSessions(prev => [...prev, { id, name: defaultName }]);
-
-    // Persist both name and empty structure
-    await window.chatAPI.renameChat({ id, name: defaultName });
-  };
-
-
-  const switchChat = async (id) => {
-
-    // Load chat messages + docs (with metadata) via preload
-    const { messages = [], docs = [] } = await window.chatAPI.loadChat(id);
-    console.log(`🔄 Switched to chat ${id}. Messages:`, messages, 'Docs:', docs);
-
-    setMessages(messages);
-    setSessionDocs(docs);
-    
-    // If there are docs, load full chunks & embeddings from disk
-    if (docs.length > 0) {
-      try {
-        const loadedDocs = await loadSessionDocs(id, docs);
-        const chunks = loadedDocs.flatMap(doc => doc.chunks);
-        const embeddings = loadedDocs.flatMap(doc => doc.embeddings);
-
-        setRagData(prev => new Map(prev).set(id, {
-          chunks,
-          embedded: embeddings,
-          fileName: loadedDocs.map(d => d.name).join(', '),
-        }));
-        setRagMode(true);
-        setDocUploaded(true);
-        setChatId(id);
-      } catch (err) {
-        console.warn(`⚠️ Failed to load RAG data for chat ${id}:`, err);
-        setRagMode(false);
-        setDocUploaded(false);
-        setChatId(id);
-      }
-    } else {
-      console.log(`📄 No documents found for chat ${id}. Disabling RAG mode.`);
-      setRagMode(false);
-      setDocUploaded(false);
-      setChatId(id);
-    }
-  };
-
-
-  const updateChatName = async (id, newName) => {
-    console.log(`📝 Renaming chat ${id} to "${newName}"...`);
-    setSessions(prev => prev.map(s => (s.id === id ? { ...s, name: newName } : s)));
-    await window.chatAPI.renameChat({ id, name: newName });
-  };
 
   function buildMessageContext(inputText, metadata = {}) {
     console.log('🔄 Building message context for input:', inputText, 'with metadata:', metadata, 'messages:', messages);
@@ -249,20 +202,6 @@ function App() {
     setLoading(false);
   };
 
-  const deleteChat = async (id) => {
-    await window.chatAPI.deleteChat(id);
-    setSessions(prev => prev.filter(s => s.id !== id));
-    setRagData(prev => {
-      const copy = new Map(prev);
-      copy.delete(id);
-      return copy;
-    });
-    if (chatId === id) {
-      setChatId('');
-      setMessages([]);
-      setRagMode(false);
-    }
-  };
 
     // Export current chat
   const handleExport = async () => {
@@ -567,33 +506,6 @@ function App() {
     setProgress(null);
   };
 
-  async function loadSessionDocs(chatId, docsMetadata) {
-    const loadedDocs = [];
-
-    for (const doc of docsMetadata) {
-      const { id: docId, name, ext } = doc;
-
-      try {
-        const result = await window.chatAPI.loadDocData({ chatId, docId, ext });
-
-        if (result?.chunks && result?.embeddings) {
-          loadedDocs.push({
-            id: docId,
-            name,
-            filePath: `chats/${chatId}/docs/${docId}/file.${ext}`,
-            chunks: result.chunks,
-            embeddings: result.embeddings,
-          });
-        } else {
-          console.warn(`⚠️ Failed to load doc ${name}`);
-        }
-      } catch (err) {
-        console.error(`❌ Error loading doc ${name}`, err);
-      }
-    }
-
-    return loadedDocs;
-  }
 
   async function embedAndPersistDocument(file, chatId, parsedText) {
     const docId = uuidv4();
