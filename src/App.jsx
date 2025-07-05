@@ -10,7 +10,7 @@ import { chunkText } from './utils/chunkText';
 import DownloadProgressModal from './ui-elements/DownloadProgressModal';
 import { v4 as uuidv4 } from 'uuid'
 import { useChatManager } from './hooks/useChatManager'; 
-
+import { useDocumentManager } from './hooks/useDocumentManager';
 
 function App() {
   const [chatId, setChatId] = useState('');
@@ -52,6 +52,23 @@ function App() {
     setRagData,
     setSessions,
   });
+
+  const {
+  handleDocumentUpload,
+  handleSummarizeDoc,
+  sendRAGQuestion,
+} = useDocumentManager({
+  chatId,
+  messages,
+  ragData,
+  setMessages,
+  setToast,
+  setInput,
+  setRagMode,
+  setDocUploaded,
+  setRagData,
+});
+
 
   useEffect(() => {
     if (toast) {
@@ -219,25 +236,25 @@ function App() {
   };
 
 
-  async function handleDocumentUpload(e) {
-    const file = e.target.files[0];
-    if (!file || !chatId) return;
+  // async function handleDocumentUpload(e) {
+  //   const file = e.target.files[0];
+  //   if (!file || !chatId) return;
 
-    try {
-      const parsedText = await parseUploadedFile(file);
-      showParsedPreview(parsedText, file.name);
+  //   try {
+  //     const parsedText = await parseUploadedFile(file);
+  //     showParsedPreview(parsedText, file.name);
 
-      const doc = await embedAndPersistDocument(file, chatId, parsedText);
+  //     const doc = await embedAndPersistDocument(file, chatId, parsedText);
 
-      updateRagState(doc);
-      await saveAutoSummaryPrompt(doc);
+  //     updateRagState(doc);
+  //     await saveAutoSummaryPrompt(doc);
 
-      setToast(`✅ Document uploaded and persisted. RAG ready.`);
-    } catch (err) {
-      console.error('❌ Document upload error:', err);
-      alert('Failed to parse or persist the document. Please try again.');
-    }
-  }
+  //     setToast(`✅ Document uploaded and persisted. RAG ready.`);
+  //   } catch (err) {
+  //     console.error('❌ Document upload error:', err);
+  //     alert('Failed to parse or persist the document. Please try again.');
+  //   }
+  // }
 
   async function parseUploadedFile(file) {
     const ext = file.name.split('.').pop().toLowerCase();
@@ -297,19 +314,6 @@ function App() {
   }
 
 
-  const handleSummarizeDoc = () => {
-    const data = ragData.get(chatId);
-    if (!data) {
-      setToast('❌ No document found for summarization. Please upload a document first.');
-      return;
-    }
-
-    const allText = data.chunks.join(' ');
-    const summarizePrompt = `📄 Summarize the uploaded document below.\n\n${allText}`;
-
-    sendMessage(summarizePrompt);
-  };
-
   async function embedChunksLocally(chunks) {
     console.log('🔄 Ensuring embedding model is ready...',downloading, status, progress, detail);
     await ensureEmbeddingModel(setDownloading, setStatus, setProgress, setDetail);
@@ -339,86 +343,6 @@ function App() {
 
     return embedded;
   }
-
-  const sendRAGQuestion = async (question) => {
-    await ensureEmbeddingModel(setDownloading, setStatus, setProgress, setDetail); 
-  
-    if (!question.trim()) return;
-
-    const data = ragData.get(chatId);
-    if (!data || !data.embedded?.length) {
-      setToast(
-        '📄 No RAG document found for this session. \nPlease upload a document using "Summarize PDF" or \ndisable RAG mode to ask general questions.'
-      );
-      return;
-    }
-
-    try {
-      // Step 1: Embed the question
-      const res = await fetch('http://localhost:11434/api/embeddings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'nomic-embed-text',
-          prompt: question,
-        }),
-      });
-
-      const questionEmbeddingData = await res.json();
-      const questionEmbedding = questionEmbeddingData.embedding;
-      if (!questionEmbedding) throw new Error('No embedding returned for question');
-
-      // Step 2: Compute cosine similarity between question and each chunk
-      const cosineSimilarity = (vecA, vecB) => {
-        const dot = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0);
-        const normA = Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0));
-        const normB = Math.sqrt(vecB.reduce((sum, b) => sum + b * b, 0));
-        return dot / (normA * normB);
-      };
-
-      const scored = data.embedded.map(({ chunk, embedding }, index) => ({
-        chunk,
-        score: cosineSimilarity(questionEmbedding, embedding),
-        index,
-      }));
-
-      const topChunks = scored
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 3)
-        .map(({ chunk, index }) => ({
-          chunk,
-          sourceIndex: index,
-        }));
-
-      // Step 3: Compose cleaner prompt
-      const prompt = `📄 Use relevant information from the uploaded document to answer the question. Sources will be shown below.\n\n❓ Question: ${question}`;
-
-      const userMessage = {
-        role: 'user',
-        content: prompt,
-        timestamp: new Date().toISOString(),
-      };
-
-      const newMessages = [...messages, userMessage];
-      setMessages(newMessages);
-      setInput('');
-
-      const metadata = {
-        sources: topChunks.map((item) => ({
-          text: item.chunk,
-          index: item.sourceIndex,
-          fileName: data.fileName || 'Uploaded Document',
-        })),
-      };
-
-      // 🧠 Send message with `sources` attached
-      sendMessage(prompt, metadata);
-
-    } catch (err) {
-      console.error('❌ Semantic search error:', err);
-      alert('Failed to embed or search document context.');
-    }
-  };
 
   function renderWithThinking(text, sources = []) {
     const parts = text.split(/(<think>[\s\S]*?<\/think>)/g);
