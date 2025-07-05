@@ -1,4 +1,10 @@
 import { chunkText } from '../utils/chunkText';
+import {
+  ensureEmbeddingModel,
+  getEmbedding,
+  embedMultiple,
+  cosineSimilarity
+} from '../utils/embeddingUtils';
 import { v4 as uuidv4 } from 'uuid';
 
 /*
@@ -78,15 +84,23 @@ export function useDocumentManager({
   };
 
   const updateRagState = (doc) => {
-    setRagData((prev) => new Map(prev).set(chatId, {
-      chunks: doc.chunks,
-      embedded: doc.embeddings,
-      fileName: doc.name,
-    }));
+    setRagData((prev) =>
+      new Map(prev).set(chatId, {
+        docs: [
+          {
+            fileName: doc.name,
+            chunks: doc.chunks,
+            embeddings: doc.embeddings,
+          },
+        ],
+      })
+    );
+
     setDocUploaded(true);
-    setRagMode?.(true); 
-    setSessionDocs(prev => [...prev, doc])
+    setRagMode?.(true);
+    setSessionDocs((prev) => [...prev, doc]);
   };
+
 
   const saveAutoSummaryPrompt = async (doc) => {
     const prompt = `📄 Summarize the uploaded ${doc.name} document using its content. Highlight main sections, topics, and key takeaways.`;
@@ -123,28 +137,7 @@ export function useDocumentManager({
 
   const embedChunksLocally = async (chunks) => {
     await ensureEmbeddingModel(setDownloading, setStatus, setProgress, setDetail);
-    console.log('🔍 Embedding chunks...');
-    const embedded = [];
-
-    for (const chunk of chunks) {
-      const res = await fetch('http://localhost:11434/api/embeddings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'nomic-embed-text',
-          prompt: chunk,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.embedding) {
-        embedded.push({ chunk, embedding: data.embedding });
-      } else {
-        console.error('❌ Failed to embed:', chunk.slice(0, 30));
-      }
-    }
-
-    return embedded;
+    return await embedMultiple(chunks);
   };
 
   const embedAndPersistDocument = async (file, chatId, parsedText) => {
@@ -181,33 +174,11 @@ export function useDocumentManager({
   };
 
   const sendRAGQuestion = async (question) => {
-    await ensureEmbeddingModel(setDownloading, setStatus, setProgress, setDetail); 
-  
+    await ensureEmbeddingModel(setDownloading, setStatus, setProgress, setDetail);
     const data = ragData.get(chatId);
-    console.log('🔍 Sending RAG question:', question, data);
     if (!question.trim() || !data?.embedded?.length) return;
 
-    const res = await fetch('http://localhost:11434/api/embeddings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'nomic-embed-text',
-        prompt: question,
-      }),
-    });
-
-    ;
-
-    const questionEmbeddingData = await res.json();
-    const questionEmbedding = questionEmbeddingData.embedding;
-    if (!questionEmbedding) throw new Error('No embedding returned for question');
-
-    const cosineSimilarity = (vecA, vecB) => {
-      const dot = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0);
-      const normA = Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0));
-      const normB = Math.sqrt(vecB.reduce((sum, b) => sum + b * b, 0));
-      return dot / (normA * normB);
-    };
+    const questionEmbedding = await getEmbedding(question);
 
     const scored = data.embedded.map(({ chunk, embedding }, index) => ({
       chunk,
@@ -241,10 +212,9 @@ export function useDocumentManager({
 
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
-
-    console.log('🧠 Calling sendMessage with metadata:', metadata);
     sendMessage(prompt, metadata);
   };
+
 
   async function ensureEmbeddingModel() {
     console.log('🔄 Checking for embedding model...');
@@ -264,17 +234,41 @@ export function useDocumentManager({
 
   };
 
-  const handleCancelDownload = () => {
-    window.chatAPI.cancelDownload?.();
-    setDownloading(null);
-    setStatus(null);
-    setProgress(null);
+
+  const searchDocuments = async (query) => {
+    if (!query.trim()) return [];
+    console.log(`🔍 Searching documents for query: "${query}"`);
+
+    await ensureEmbeddingModel(setDownloading, setStatus, setProgress, setDetail);
+    const queryEmbedding = await getEmbedding(query);
+
+    const rag = ragData.get(chatId);
+    console.log('🔄 RAG data:', rag, rag.docs);
+    if (!rag?.docs?.length) return [];
+    console.log(`📄 Found ${rag.docs.length} documents in RAG data.`);
+
+    const results = [];
+    rag.docs.forEach((doc, docIndex) => {
+      doc.embeddings.forEach((entry, chunkIndex) => {
+        results.push({
+          chunk: doc.chunks[chunkIndex],
+          score: cosineSimilarity(queryEmbedding, entry.embedding),
+          fileName: doc.fileName,
+          docIndex,
+          chunkIndex,
+        });
+      });
+    });
+    console.log(`🔍 Search results for "${query}":`, results);
+    return results.sort((a, b) => b.score - a.score).slice(0, 5);
   };
+
 
 
   return {
     handleDocumentUpload,
     handleSummarizeDoc,
     sendRAGQuestion,
+    searchDocuments
   };
 }

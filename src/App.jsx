@@ -6,9 +6,7 @@ import Sidebar from './ui-elements/Sidebar';
 import ModelSelector from './pages/ModelSelector';
 import ChatHeader from './ui-elements/ChatHeader';
 import ChatFooter from './ui-elements/ChatFooter';
-import { chunkText } from './utils/chunkText';
 import DownloadProgressModal from './ui-elements/DownloadProgressModal';
-import { v4 as uuidv4 } from 'uuid'
 import { useChatManager } from './hooks/useChatManager'; 
 import { useDocumentManager } from './hooks/useDocumentManager';
 
@@ -36,13 +34,15 @@ function App() {
   const [progress, setProgress] = useState(null);
   const [detail, setDetail] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [searchResults, setSearchResults] = useState([]);
+  const [activePanel, setActivePanel] = useState('chat');
 
   const {
     newChat,
     switchChat,
     updateChatName,
     deleteChat,
-    loadSessionDocs,
+    loadSessionDocs,// for a future feature
   } = useChatManager({
     chatId,
     setChatId,
@@ -210,6 +210,7 @@ function App() {
     handleDocumentUpload,
     handleSummarizeDoc,
     sendRAGQuestion,
+    searchDocuments,
   } = useDocumentManager({
     chatId,
     messages,
@@ -428,6 +429,7 @@ function App() {
             updateChatName={updateChatName}
             collapsed={sidebarCollapsed}
             setCollapsed={setSidebarCollapsed}
+            searchDocuments={searchDocuments}
           />
         )}
 

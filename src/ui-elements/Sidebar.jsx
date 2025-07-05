@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, MessageSquarePlus, Grid } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, MessageSquarePlus, Grid } from 'lucide-react';
 import ChatActions from './sidebarComponents/ChatActions.jsx';
-import WorkspaceActions from './sidebarComponents/WorkspaceActions'; // placeholder for other features
+import WorkspaceActions from './sidebarComponents/WorkspaceActions';
+import SearchPanel from './sidebarComponents/SearchPanel';
 
 export default function Sidebar({
   sessions,
@@ -11,17 +12,23 @@ export default function Sidebar({
   deleteChat,
   updateChatName,
   collapsed,
-  setCollapsed
+  setCollapsed,
+  searchDocuments,
 }) {
-  const [activePanel, setActivePanel] = useState('chat'); // or 'workspace', 'settings', etc.
+  const [activePanel, setActivePanel] = useState('chat');
+  const [searchResults, setSearchResults] = useState([]);
 
   const handleMiniIconClick = (panel) => {
     setActivePanel(panel);
     setCollapsed(false);
   };
 
+  const handleSemanticSearch = async (query) => {
+    const results = await searchDocuments(query);
+    setSearchResults(results);
+  };
+
   const renderPanel = () => {
-    console.log('sidebar chat-sessions:', sessions);
     switch (activePanel) {
       case 'chat':
         return (
@@ -35,8 +42,16 @@ export default function Sidebar({
             collapsed={collapsed}
           />
         );
+      case 'search':
+        return (
+          <SearchPanel
+            onSearch={handleSemanticSearch}
+            searchResults={searchResults}
+            collapsed={collapsed}
+          />
+        );
       case 'workspace':
-        return <WorkspaceActions />; // swap in your real component
+        return <WorkspaceActions />;
       default:
         return null;
     }
@@ -70,17 +85,64 @@ export default function Sidebar({
           >
             <MessageSquarePlus size={18} />
           </button>
+
           <button onClick={() => handleMiniIconClick('workspace')} title="Workspace">
             <Grid size={18} />
           </button>
 
-          {/* You can add more mini icons here */}
-          {/* <button onClick={() => handleMiniIconClick('workspace')} title="Workspaces">...</button> */}
+          <button
+            onClick={() => handleMiniIconClick('search')}
+            title="Semantic Search"
+            className="p-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+          >
+            <Search size={18} />
+          </button>
         </div>
       )}
 
-      {/* Expanded panel */}
-      {!collapsed && renderPanel()}
+      {/* Expanded panel buttons */}
+      {!collapsed && (
+        <div className="flex space-x-2 mb-2 px-2">
+          <button
+            onClick={() => setActivePanel('chat')}
+            className={`px-3 py-1.5 rounded-md text-sm flex items-center gap-1 transition ${
+              activePanel === 'chat'
+                ? 'bg-blue-600 text-white'
+                : 'bg-zinc-100 dark:bg-zinc-700 text-gray-800 dark:text-gray-200'
+            }`}
+            title="Chats"
+          >
+            <MessageSquarePlus size={16} />
+          </button>
+
+          <button
+            onClick={() => setActivePanel('workspace')}
+            className={`px-3 py-1.5 rounded-md text-sm flex items-center gap-1 transition ${
+              activePanel === 'workspace'
+                ? 'bg-blue-600 text-white'
+                : 'bg-zinc-100 dark:bg-zinc-700 text-gray-800 dark:text-gray-200'
+            }`}
+            title="Workspace"
+          >
+            <Grid size={16} />
+          </button>
+
+          <button
+            onClick={() => setActivePanel('search')}
+            className={`px-3 py-1.5 rounded-md text-sm flex items-center gap-1 transition ${
+              activePanel === 'search'
+                ? 'bg-blue-600 text-white'
+                : 'bg-zinc-100 dark:bg-zinc-700 text-gray-800 dark:text-gray-200'
+            }`}
+            title="Search"
+          >
+            <Search size={16} />
+          </button>
+        </div>
+      )}
+
+      {/* Scrollable panel content */}
+      <div className="flex-1 overflow-y-auto overflow-x-auto pr-1">{renderPanel()}</div>
     </aside>
   );
 }

@@ -43,16 +43,20 @@ export function useChatManager({
     if (docs.length > 0) {
       try {
         const loadedDocs = await loadSessionDocs(id, docs);
-        const chunks = loadedDocs.flatMap((doc) => doc.chunks);
-        const embeddings = loadedDocs.flatMap((doc) => doc.embeddings);
+
+        // ✅ Store per-document structure for RAG (fix for semantic search)
+        const docEntries = loadedDocs.map((doc) => ({
+          fileName: doc.name,
+          chunks: doc.chunks,
+          embeddings: doc.embeddings,
+        }));
 
         setRagData((prev) =>
           new Map(prev).set(id, {
-            chunks,
-            embedded: embeddings,
-            fileName: loadedDocs.map((d) => d.name).join(', '),
+            docs: docEntries,
           })
         );
+
         setRagMode(true);
         setDocUploaded(true);
         setChatId(id);
