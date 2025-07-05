@@ -8,11 +8,14 @@ import ChatHeader from './ui-elements/ChatHeader';
 import ChatFooter from './ui-elements/ChatFooter';
 import { chunkText } from './utils/chunkText';
 import DownloadProgressModal from './ui-elements/DownloadProgressModal';
-
+import { v4 as uuidv4 } from 'uuid'
+import { useChatManager } from './hooks/useChatManager'; 
+import { useDocumentManager } from './hooks/useDocumentManager';
 
 function App() {
   const [chatId, setChatId] = useState('');
   const [messages, setMessages] = useState([]);
+  const [sessionDocs, setSessionDocs] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -34,6 +37,38 @@ function App() {
   const [detail, setDetail] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
+  const {
+    newChat,
+    switchChat,
+    updateChatName,
+    deleteChat,
+    loadSessionDocs,
+  } = useChatManager({
+    setChatId,
+    setMessages,
+    setSessionDocs,
+    setRagMode,
+    setDocUploaded,
+    setRagData,
+    setSessions,
+  });
+
+  const {
+  handleDocumentUpload,
+  handleSummarizeDoc,
+  sendRAGQuestion,
+} = useDocumentManager({
+  chatId,
+  messages,
+  ragData,
+  setMessages,
+  setToast,
+  setInput,
+  setRagMode,
+  setDocUploaded,
+  setRagData,
+});
+
 
   useEffect(() => {
     if (toast) {
@@ -49,12 +84,17 @@ function App() {
   }, [darkMode]);
 
   useEffect(() => {  
+    console.log('🔥 useEffect for listChats triggered',sessions);
     window.chatAPI.listChats().then(setSessions);
   }, []);
 
   useEffect(() => {
     if (chatId) {
-      window.chatAPI.loadChat(chatId).then(setMessages);
+      console.log(`🔄 Loading chat ${chatId}...`);
+      window.chatAPI.loadChat(chatId).then(({ messages, docs }) => {
+        setMessages(messages);
+        setSessionDocs(docs);
+      });
     }
   }, [chatId]);
 
@@ -62,36 +102,23 @@ function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  const newChat = async () => {
-    const id = `chat-${Date.now()}`;
-    const defaultName = 'New Chat';
-    setChatId(id);
-    setMessages([]);
-    setSessions(prev => [...prev, { id, name: defaultName }]);
-    setDocUploaded(false);
-    setRagMode(false);
-    await window.chatAPI.renameChat({ id, name: defaultName });
-  };
-
-  const switchChat = async (id) => {
-    setChatId(id);
-    const data = await window.chatAPI.loadChat(id);
-    setMessages(data);
-    setDocUploaded(ragData.has(id));
-    setRagMode(ragData.has(id)); // auto enable RAG mode if document exists
-  };
-
-  const updateChatName = async (id, newName) => {
-    setSessions(prev => prev.map(s => (s.id === id ? { ...s, name: newName } : s)));
-    await window.chatAPI.renameChat({ id, name: newName });
-  };
 
   function buildMessageContext(inputText, metadata = {}) {
+    console.log('🔄 Building message context for input:', inputText, 'with metadata:', metadata, 'messages:', messages);
+
       const userMessage = {
         role: 'user',
         content: inputText,
         timestamp: new Date().toISOString(),
       };
+
+      // ✅ Ensure messages is an array
+      const messagesArray = Array.isArray(messages)
+        ? messages
+        : Array.isArray(messages?.messages)
+          ? messages.messages
+          : [];
+
 
       if (metadata.sources?.length) {
         const contextMessage = {
@@ -100,13 +127,16 @@ function App() {
             .map((src, i) => `--- Source ${i + 1} ---\n${src.text}`)
             .join('\n\n')}`,
         };
-        return [[...messages, contextMessage, userMessage], userMessage];
+        return [[...messagesArray, contextMessage, userMessage], userMessage];
       }
 
-      return [[...messages, userMessage], userMessage];
-  };
+      console.log('📄 No sources provided, sending user message only', messagesArray);
+      return [[...messagesArray, userMessage], userMessage];
+    }
+
 
   const sendMessage = async (customInput, metadata = {}) => {
+    console.log('📤 sendMessage called with input:', customInput, 'and metadata:', metadata, 'testinput:', input);
     const messageToSend = typeof customInput === 'string' ? customInput : input;
 
     if (!messageToSend?.trim?.()) return;
@@ -115,7 +145,9 @@ function App() {
     const [finalMessages, userMessage] = buildMessageContext(messageToSend, metadata);
 
     // Show only userMessage in UI
-    const updatedUI = [...messages, userMessage];
+    const updatedUI = [...messages, userMessage];  // ✅ Correct, since messages is an array
+
+    console.log('📤 Sending message:', updatedUI);
     setMessages(updatedUI);
     setInput('');
     setLoading(true);
@@ -187,20 +219,6 @@ function App() {
     setLoading(false);
   };
 
-  const deleteChat = async (id) => {
-    await window.chatAPI.deleteChat(id);
-    setSessions(prev => prev.filter(s => s.id !== id));
-    setRagData(prev => {
-      const copy = new Map(prev);
-      copy.delete(id);
-      return copy;
-    });
-    if (chatId === id) {
-      setChatId('');
-      setMessages([]);
-      setRagMode(false);
-    }
-  };
 
     // Export current chat
   const handleExport = async () => {
@@ -217,89 +235,84 @@ function App() {
     }
   };
 
-  const handleDocumentUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file || !chatId) return;
 
+  // async function handleDocumentUpload(e) {
+  //   const file = e.target.files[0];
+  //   if (!file || !chatId) return;
+
+  //   try {
+  //     const parsedText = await parseUploadedFile(file);
+  //     showParsedPreview(parsedText, file.name);
+
+  //     const doc = await embedAndPersistDocument(file, chatId, parsedText);
+
+  //     updateRagState(doc);
+  //     await saveAutoSummaryPrompt(doc);
+
+  //     setToast(`✅ Document uploaded and persisted. RAG ready.`);
+  //   } catch (err) {
+  //     console.error('❌ Document upload error:', err);
+  //     alert('Failed to parse or persist the document. Please try again.');
+  //   }
+  // }
+
+  async function parseUploadedFile(file) {
     const ext = file.name.split('.').pop().toLowerCase();
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
 
-    try {
-      let text = '';
-      const arrayBuffer = await file.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-
-      if (ext === 'pdf') {
-        console.log('Sending PDF binary data to main process:', uint8Array.length);
-        const result = await window.chatAPI.parsePDF(uint8Array);
-        if (result.error || !result.text?.trim()) {
-          throw new Error(result.error || 'No text returned from PDF');
-        }
-        text = result.text;
-      } else if (ext === 'txt' || ext === 'md') {
-        text = new TextDecoder().decode(uint8Array);
-      } else {
-        alert('❌ Unsupported file type. Please upload PDF, TXT, or Markdown.');
-        return;
+    if (ext === 'pdf') {
+      const result = await window.chatAPI.parsePDF(uint8Array);
+      if (result.error || !result.text?.trim()) {
+        throw new Error(result.error || 'No text returned from PDF');
       }
-
-      // ✅ Show preview
-      console.log(`✅ Parsed ${ext.toUpperCase()} Text Length:`, text.length);
-      console.log('📄 Preview:\n', text.trim().slice(0, 500));
-
-      const chunks = chunkText(text, 300, 50);
-      const embedded = await embedChunksLocally(chunks);
-
-      console.log('📌 Embedded Chunks:', embedded.length);
-      setRagData(prev => new Map(prev).set(chatId, {
-        chunks,
-        embedded,
-        fileName: file.name,
-      }));
-      setRagMode(true);
-
-      // ✅ Compose synthetic RAG summarization question
-      const prompt = `📄 Summarize the uploaded ${ext.toUpperCase()} ${file.name} document using its content. Highlight main sections, topics, and key takeaways.`;
-
-      const topChunks = embedded.map((item, index) => ({
-        text: item.chunk,
-        index,
-        fileName: file.name,
-      }));
-
-      const metadata = {
-        sources: topChunks,
-      };
-
-      const userMessage = {
-        role: 'user',
-        content: prompt,
-        timestamp: new Date().toISOString(),
-      };
-
-      const newMessages = [...messages, userMessage];
-      setMessages(newMessages);
-      await window.chatAPI.saveChat({ id: chatId, messages: newMessages });
-
-      setToast(`✅ Document uploaded. RAG summarization from ${chunks.length} chunks ready.`);
-
-    } catch (err) {
-      console.error('❌ Document upload error:', err);
-      alert('Failed to parse or upload the document. Please try another file.');
-    }
-  };
-
-  const handleSummarizeDoc = () => {
-    const data = ragData.get(chatId);
-    if (!data) {
-      setToast('❌ No document found for summarization. Please upload a document first.');
-      return;
+      return result.text;
     }
 
-    const allText = data.chunks.join(' ');
-    const summarizePrompt = `📄 Summarize the uploaded document below.\n\n${allText}`;
+    if (ext === 'txt' || ext === 'md') {
+      return new TextDecoder().decode(uint8Array);
+    }
 
-    sendMessage(summarizePrompt);
-  };
+    throw new Error('❌ Unsupported file type. Please upload PDF, TXT, or Markdown.');
+  }
+
+  function showParsedPreview(text, name) {
+    console.log(`✅ Parsed ${name} — Length:`, text.length);
+    console.log('📄 Preview:\n', text.trim().slice(0, 500));
+  }
+
+  function updateRagState(doc) {
+    setRagData(prev => new Map(prev).set(chatId, {
+      chunks: doc.chunks,
+      embedded: doc.embeddings,
+      fileName: doc.name,
+    }));
+    setRagMode(true);
+    setDocUploaded(true);
+  }
+
+  async function saveAutoSummaryPrompt(doc) {
+    const prompt = `📄 Summarize the uploaded ${doc.name} document using its content. Highlight main sections, topics, and key takeaways.`;
+
+    const topChunks = doc.chunks.slice(0, 3).map((chunk, index) => ({
+      text: chunk,
+      index,
+      fileName: doc.name,
+    }));
+
+    const metadata = { sources: topChunks };
+
+    const userMessage = {
+      role: 'user',
+      content: prompt,
+      timestamp: new Date().toISOString(),
+    };
+
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
+    await window.chatAPI.saveChat({ id: chatId, messages: newMessages });
+  }
+
 
   async function embedChunksLocally(chunks) {
     console.log('🔄 Ensuring embedding model is ready...',downloading, status, progress, detail);
@@ -330,86 +343,6 @@ function App() {
 
     return embedded;
   }
-
-  const sendRAGQuestion = async (question) => {
-    await ensureEmbeddingModel(setDownloading, setStatus, setProgress, setDetail); 
-  
-    if (!question.trim()) return;
-
-    const data = ragData.get(chatId);
-    if (!data || !data.embedded?.length) {
-      setToast(
-        '📄 No RAG document found for this session. \nPlease upload a document using "Summarize PDF" or \ndisable RAG mode to ask general questions.'
-      );
-      return;
-    }
-
-    try {
-      // Step 1: Embed the question
-      const res = await fetch('http://localhost:11434/api/embeddings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'nomic-embed-text',
-          prompt: question,
-        }),
-      });
-
-      const questionEmbeddingData = await res.json();
-      const questionEmbedding = questionEmbeddingData.embedding;
-      if (!questionEmbedding) throw new Error('No embedding returned for question');
-
-      // Step 2: Compute cosine similarity between question and each chunk
-      const cosineSimilarity = (vecA, vecB) => {
-        const dot = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0);
-        const normA = Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0));
-        const normB = Math.sqrt(vecB.reduce((sum, b) => sum + b * b, 0));
-        return dot / (normA * normB);
-      };
-
-      const scored = data.embedded.map(({ chunk, embedding }, index) => ({
-        chunk,
-        score: cosineSimilarity(questionEmbedding, embedding),
-        index,
-      }));
-
-      const topChunks = scored
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 3)
-        .map(({ chunk, index }) => ({
-          chunk,
-          sourceIndex: index,
-        }));
-
-      // Step 3: Compose cleaner prompt
-      const prompt = `📄 Use relevant information from the uploaded document to answer the question. Sources will be shown below.\n\n❓ Question: ${question}`;
-
-      const userMessage = {
-        role: 'user',
-        content: prompt,
-        timestamp: new Date().toISOString(),
-      };
-
-      const newMessages = [...messages, userMessage];
-      setMessages(newMessages);
-      setInput('');
-
-      const metadata = {
-        sources: topChunks.map((item) => ({
-          text: item.chunk,
-          index: item.sourceIndex,
-          fileName: data.fileName || 'Uploaded Document',
-        })),
-      };
-
-      // 🧠 Send message with `sources` attached
-      sendMessage(prompt, metadata);
-
-    } catch (err) {
-      console.error('❌ Semantic search error:', err);
-      alert('Failed to embed or search document context.');
-    }
-  };
 
   function renderWithThinking(text, sources = []) {
     const parts = text.split(/(<think>[\s\S]*?<\/think>)/g);
@@ -498,6 +431,48 @@ function App() {
   };
 
 
+  async function embedAndPersistDocument(file, chatId, parsedText) {
+    const docId = uuidv4();
+    const ext = file.name.split('.').pop();
+
+    // 1. Chunk text
+    const chunks = chunkText(parsedText, 300, 50);
+
+    // 2. Embed
+    const embeddings = await embedChunksLocally(chunks);
+
+    // 3. Persist file + data to disk
+    const buffer = await file.arrayBuffer();
+    await window.chatAPI.persistDoc({
+      chatId,
+      docId,
+      fileName: file.name,
+      ext,
+      fileBuffer: Array.from(new Uint8Array(buffer)),
+      chunks,
+      embeddings,
+    });
+
+    // 4. Update metadata
+    const existingMeta = await window.chatAPI.loadDocMetadata?.(chatId);
+    const docsMetadata = Array.isArray(existingMeta) ? existingMeta : [];
+    docsMetadata.push({ id: docId, name: file.name, ext });
+
+    console.log(`📄 Persisting doc metadata for ${chatId}:`, docsMetadata);
+    await window.chatAPI.updateChatDocs({ chatId, docs: docsMetadata });
+
+    await window.chatAPI.persistDocMetadata({ chatId, docsMetadata });
+
+    // 5. Return doc
+    return {
+      id: docId,
+      name: file.name,
+      filePath: `chats/${chatId}/docs/${docId}/file.${ext}`,
+      chunks,
+      embeddings,
+    };
+  }
+
 
   return (
     <div className="flex h-screen  from-[#f4f7fb] via-[#e6edf7] to-[#dce8f2] dark:from-gray-900 dark:via-gray-800 dark:bg-[#1c1d1e] text-zinc-900 dark:text-white transition-colors">
@@ -537,7 +512,8 @@ function App() {
                 </div>
                 ): (
               <>
-                {messages.map((m, i) => (
+                {Array.isArray(messages) && messages
+                .map((m, i) => (
                   <div
                     key={i}
                      className={`px-5 py-3 rounded-2xl shadow-md transition-all duration-300 ${

@@ -61,7 +61,8 @@ export default function ChatActions({
 
       <div className="flex-1 overflow-y-auto space-y-2 mt-2">
         {sortedSessions.map((s) => (
-          <div key={s.id} className="flex items-center justify-between group">
+        <div key={s.id} className="flex flex-col group">
+        <div className="flex items-center justify-between">
             {editingChatId === s.id ? (
               <input
                 autoFocus
@@ -77,45 +78,57 @@ export default function ChatActions({
                     ? 'bg-[#d6dfff] dark:bg-purple-600 text-black dark:text-white font-semibold'
                     : 'bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100'
                 }`}
-              />
+            />
             ) : (
-              <button
+            <button
                 onClick={() => switchChat(s.id)}
                 onDoubleClick={() => startRename(s.id, s.name)}
                 className={`flex-1 text-left px-2 py-2 rounded-lg group-hover:pr-2 truncate ${
-                  s.id === chatId
+                s.id === chatId
                     ? 'bg-[#d6dfff] dark:bg-purple-600 text-black dark:text-white font-semibold'
                     : 'hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-100'
                 }`}
-              >
+            >
                 {!collapsed && <span className="truncate">{s.name}</span>}
-              </button>
+            </button>
             )}
 
-            {!collapsed && editingChatId !== s.id && (
-              <>
-                <button
-                  className="text-gray-500 hover:text-blue-600 dark:hover:text-blue-300 text-sm ml-2 hidden group-hover:inline"
-                  title="Rename chat"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    startRename(s.id, s.name);
-                  }}
-                >
-                  <Pencil size={14} />
-                </button>
-                <button
-                  className="text-red-500 hover:text-red-700 text-sm ml-1"
-                  title="Delete chat"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setChatToDelete(s);
-                    setShowConfirm(true);
-                  }}
-                >
-                  🗙
-                </button>
-              </>
+              {!collapsed && editingChatId !== s.id && (
+                <>
+                  <button
+                    className="text-gray-500 hover:text-blue-600 dark:hover:text-blue-300 text-sm ml-2 hidden group-hover:inline"
+                    title="Rename chat"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startRename(s.id, s.name);
+                    }}
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    className="text-red-500 hover:text-red-700 text-sm ml-1"
+                    title="Delete chat"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setChatToDelete(s);
+                      setShowConfirm(true);
+                    }}
+                  >
+                    🗙
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* 📄 Uploaded documents under chat */}
+            {!collapsed && s.docs?.length > 0 && (
+              <ul className="ml-4 mt-1 space-y-1 text-xs text-gray-600 dark:text-gray-400">
+                {s.docs.map((doc) => (
+                  <li key={doc.id} className="truncate">
+                    📄 {doc.name}
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         ))}

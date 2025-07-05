@@ -21,6 +21,7 @@ export default function Sidebar({
   };
 
   const renderPanel = () => {
+    console.log('sidebar chat-sessions:', sessions);
     switch (activePanel) {
       case 'chat':
         return (

@@ -59,43 +59,83 @@ function stripAnsi(input) {
 }
 
 // -------------------- IPC Chat handlers --------------------
-ipcMain.on('save-chat', (e, { id, messages }) => {
+ipcMain.on('save-chat', (e, { id, messages = [] }) => {
   try {
-    fs.writeFileSync(path.join(chatsDir, `${id}.json`), JSON.stringify(messages, null, 2));
+    const chatDir = path.join(chatsDir, id);
+    fs.mkdirSync(chatDir, { recursive: true });
+
+    const filePath = path.join(chatDir, 'chat.json');
+
+    let existing = { messages: [], docs: [] };
+    if (fs.existsSync(filePath)) {
+      existing = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    }
+
+    const updated = {
+      ...existing,
+      messages, // replace messages
+      // keep docs as-is
+    };
+
+    fs.writeFileSync(filePath, JSON.stringify(updated, null, 2));
+    console.log(`✅ Saved chat "${id}" with ${messages.length} messages (docs preserved: ${existing.docs?.length || 0})`);
   } catch (err) {
-    console.error(`Error saving chat (${id}):`, err);
+    console.error(`❌ Error saving chat (${id}):`, err);
   }
 });
 
 ipcMain.handle('load-chat', (e, id) => {
   try {
-    const filePath = path.join(chatsDir, `${id}.json`);
+    console.log(`🔄 Loading chat ${id}...`, chatsDir);
+    const filePath = path.join(chatsDir, id, 'chat.json');
     if (fs.existsSync(filePath)) {
-      return JSON.parse(fs.readFileSync(filePath));
+      const chat = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      return {
+        messages: Array.isArray(chat.messages) ? chat.messages : [],
+        docs: Array.isArray(chat.docs) ? chat.docs : [],
+      };
     }
-    return [];
   } catch (e) {
-    console.error(`Error loading chat (${id}):`, e);
+    console.error(`❌ Error loading chat (${id}):`, e);
+  }
+
+  // Fallback: always return a valid shape
+  return { messages: [], docs: [] };
+});
+
+
+
+ipcMain.handle('list-chats', () => {
+  try {
+    const manifestPath = path.join(chatsDir, 'chats.json');
+    const manifest = fs.existsSync(manifestPath)
+      ? JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
+      : {};
+
+    const chatIds = fs.readdirSync(chatsDir).filter(f => {
+      const stat = fs.statSync(path.join(chatsDir, f));
+      return stat.isDirectory();
+    });
+
+    return chatIds.map((id) => {
+      const chatPath = path.join(chatsDir, id, 'chat.json');
+      let docs = [];
+      let name = manifest[id] || id;  // ✅ Prefer manifest name
+
+      if (fs.existsSync(chatPath)) {
+        const chatData = JSON.parse(fs.readFileSync(chatPath));
+        docs = chatData.docs || [];
+      }
+
+      console.log(`📂 Loaded chat "${id}" with ${docs.length} docs and name "${name}"`);
+      return { id, name, docs };
+    });
+  } catch (e) {
+    console.error('❌ Error listing chats:', e);
     return [];
   }
 });
 
-ipcMain.handle('list-chats', () => {
-  try {
-    const files = fs.readdirSync(chatsDir).filter(f => f.endsWith('.json') && f !== 'chats.json');
-    const manifest = loadManifest();
-    return files.map(file => {
-      const id = path.basename(file, '.json');
-      return {
-        id,
-        name: manifest[id] || id,
-      };
-    });
-  } catch (e) {
-    console.error('Error listing chats:', e);
-    return [];
-  }
-});
 
 ipcMain.handle('rename-chat', (event, { id, name }) => {
   try {
@@ -338,6 +378,112 @@ const promptUserToInstallOllama = async () => {
   app.quit();
   return false;
 };
+
+ipcMain.on('persist-doc', (event, {
+  chatId,
+  docId,
+  fileName,
+  ext,
+  fileBuffer,
+  chunks,
+  embeddings
+}) => {
+  try {
+    const docDir = path.join(chatsDir, chatId, 'docs', docId);
+    fs.mkdirSync(docDir, { recursive: true });
+
+    // Save original file
+    const filePath = path.join(docDir, `file.${ext}`);
+    fs.writeFileSync(filePath, Buffer.from(fileBuffer));
+
+    // Save chunks
+    fs.writeFileSync(
+      path.join(docDir, 'chunks.json'),
+      JSON.stringify(chunks, null, 2)
+    );
+
+    // Save embeddings
+    fs.writeFileSync(
+      path.join(docDir, 'embeddings.json'),
+      JSON.stringify(embeddings, null, 2)
+    );
+
+    console.log(`✅ Persisted doc "${fileName}" under chat "${chatId}"`);
+  } catch (err) {
+    console.error(`❌ Failed to persist doc ${fileName} in chat ${chatId}:`, err);
+  }
+});
+
+ipcMain.on('persist-doc-metadata', (event, { chatId, docsMetadata }) => {
+  try {
+    const docDir = path.join(chatsDir, chatId, 'docs');
+    fs.mkdirSync(docDir, { recursive: true });
+
+    const metaPath = path.join(docDir, 'docsMetadata.json');
+    fs.writeFileSync(metaPath, JSON.stringify(docsMetadata, null, 2));
+
+    console.log(`✅ Saved docsMetadata.json for chat ${chatId}`);
+  } catch (err) {
+    console.error(`❌ Failed to save doc metadata for chat ${chatId}:`, err);
+  }
+});
+
+ipcMain.handle('load-doc-data', (event, { chatId, docId, ext }) => {
+  try {
+    const docDir = path.join(chatsDir, chatId, 'docs', docId);
+
+    const chunksPath = path.join(docDir, 'chunks.json');
+    const embeddingsPath = path.join(docDir, 'embeddings.json');
+
+    const chunks = JSON.parse(fs.readFileSync(chunksPath, 'utf-8'));
+    const embeddings = JSON.parse(fs.readFileSync(embeddingsPath, 'utf-8'));
+
+    return { chunks, embeddings };
+  } catch (err) {
+    console.error(`❌ Failed to load doc data for ${docId}:`, err);
+    return null;
+  }
+});
+
+ipcMain.handle('load-doc-metadata', (event, chatId) => {
+  try {
+    const metaPath = path.join(chatsDir, chatId, 'docs', 'docsMetadata.json');
+    if (fs.existsSync(metaPath)) {
+      return JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+    }
+    return [];
+  } catch (err) {
+    console.error(`❌ Failed to load doc metadata for chat ${chatId}:`, err);
+    return [];
+  }
+});
+
+
+ipcMain.on('update-chat-docs', (e, { chatId, docs }) => {
+  try {
+    const chatDir = path.join(chatsDir, chatId);
+    fs.mkdirSync(chatDir, { recursive: true });
+
+    const filePath = path.join(chatDir, 'chat.json');
+
+    let existing = { messages: [], docs: [] };
+    if (fs.existsSync(filePath)) {
+      existing = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    }
+
+    const updated = {
+      ...existing,
+      docs, // overwrite only the docs
+    };
+
+    fs.writeFileSync(filePath, JSON.stringify(updated, null, 2));
+    console.log(`✅ Updated docs for chat "${chatId}", total: ${docs.length}`);
+  } catch (err) {
+    console.error(`❌ Failed to update docs for chat "${chatId}":`, err);
+  }
+});
+
+
 
 // -------------------- App Lifecycle --------------------
 app.whenReady().then(async () => {
