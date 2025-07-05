@@ -57,7 +57,10 @@ function App() {
   useEffect(() => {
     if (chatId) {
       console.log(`🔄 Loading chat ${chatId}...`);
-      window.chatAPI.loadChat(chatId).then(setMessages);
+      window.chatAPI.loadChat(chatId).then(({ messages, docs }) => {
+        setMessages(messages);
+        setSessionDocs(docs);
+      });
     }
   }, [chatId]);
 
@@ -66,15 +69,24 @@ function App() {
   }, [messages, loading]);
 
   const newChat = async () => {
+    console.log('🆕 Creating new chat session...');
     const id = `chat-${Date.now()}`;
     const defaultName = 'New Chat';
+
+    // Set initial states
     setChatId(id);
     setMessages([]);
-    setSessions(prev => [...prev, { id, name: defaultName }]);
+    setSessionDocs([]);
     setDocUploaded(false);
     setRagMode(false);
+    console.log(`🆕 New chat created with ID: ${id}`);
+    // Add to UI
+    setSessions(prev => [...prev, { id, name: defaultName }]);
+
+    // Persist both name and empty structure
     await window.chatAPI.renameChat({ id, name: defaultName });
   };
+
 
   const switchChat = async (id) => {
 
@@ -107,6 +119,7 @@ function App() {
         setChatId(id);
       }
     } else {
+      console.log(`📄 No documents found for chat ${id}. Disabling RAG mode.`);
       setRagMode(false);
       setDocUploaded(false);
       setChatId(id);
@@ -115,16 +128,27 @@ function App() {
 
 
   const updateChatName = async (id, newName) => {
+    console.log(`📝 Renaming chat ${id} to "${newName}"...`);
     setSessions(prev => prev.map(s => (s.id === id ? { ...s, name: newName } : s)));
     await window.chatAPI.renameChat({ id, name: newName });
   };
 
   function buildMessageContext(inputText, metadata = {}) {
+    console.log('🔄 Building message context for input:', inputText, 'with metadata:', metadata, 'messages:', messages);
+
       const userMessage = {
         role: 'user',
         content: inputText,
         timestamp: new Date().toISOString(),
       };
+
+      // ✅ Ensure messages is an array
+      const messagesArray = Array.isArray(messages)
+        ? messages
+        : Array.isArray(messages?.messages)
+          ? messages.messages
+          : [];
+
 
       if (metadata.sources?.length) {
         const contextMessage = {
@@ -133,13 +157,16 @@ function App() {
             .map((src, i) => `--- Source ${i + 1} ---\n${src.text}`)
             .join('\n\n')}`,
         };
-        return [[...messages, contextMessage, userMessage], userMessage];
+        return [[...messagesArray, contextMessage, userMessage], userMessage];
       }
-      console.log('📄 No sources provided, sending user message only', messages);
-      return [[...messages, userMessage], userMessage];
-  };
+
+      console.log('📄 No sources provided, sending user message only', messagesArray);
+      return [[...messagesArray, userMessage], userMessage];
+    }
+
 
   const sendMessage = async (customInput, metadata = {}) => {
+    console.log('📤 sendMessage called with input:', customInput, 'and metadata:', metadata, 'testinput:', input);
     const messageToSend = typeof customInput === 'string' ? customInput : input;
 
     if (!messageToSend?.trim?.()) return;
@@ -148,7 +175,8 @@ function App() {
     const [finalMessages, userMessage] = buildMessageContext(messageToSend, metadata);
 
     // Show only userMessage in UI
-    const updatedUI = [...messages, userMessage];
+    const updatedUI = [...messages, userMessage];  // ✅ Correct, since messages is an array
+
     console.log('📤 Sending message:', updatedUI);
     setMessages(updatedUI);
     setInput('');
@@ -610,9 +638,6 @@ function App() {
   }
 
 
-
-
-
   return (
     <div className="flex h-screen  from-[#f4f7fb] via-[#e6edf7] to-[#dce8f2] dark:from-gray-900 dark:via-gray-800 dark:bg-[#1c1d1e] text-zinc-900 dark:text-white transition-colors">
       {toast && (
@@ -651,7 +676,8 @@ function App() {
                 </div>
                 ): (
               <>
-                {Array.isArray(messages) && messages.map((m, i) => (
+                {Array.isArray(messages) && messages
+                .map((m, i) => (
                   <div
                     key={i}
                      className={`px-5 py-3 rounded-2xl shadow-md transition-all duration-300 ${
