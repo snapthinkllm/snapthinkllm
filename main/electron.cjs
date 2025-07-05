@@ -298,19 +298,23 @@ ipcMain.on('cancel-download', () => {
 });
 
 ipcMain.handle('export-chat', async (event, chatId) => {
-  const filePath = path.join(chatsDir, `${chatId}.json`);
-  if (!fs.existsSync(filePath)) return;
-  const data = fs.readFileSync(filePath);
-  const { canceled, filePath: exportPath } = await dialog.showSaveDialog({
-    defaultPath: `${chatId}.json`,
-    filters: [{ name: 'JSON', extensions: ['json'] }],
+    const filePath = path.join(chatsDir, chatId, 'chat.json'); // ✅ fixed path
+    if (!fs.existsSync(filePath)) return { success: false };
+
+    const data = fs.readFileSync(filePath, 'utf-8');
+    const { canceled, filePath: exportPath } = await dialog.showSaveDialog({
+      defaultPath: `${chatId}.json`,
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    });
+
+    if (!canceled && exportPath) {
+      fs.writeFileSync(exportPath, data);
+      return { success: true };
+    }
+
+    return { success: false };
   });
-  if (!canceled && exportPath) {
-    fs.writeFileSync(exportPath, data);
-    return { success: true };
-  }
-  return { success: false };
-});
+
 
 ipcMain.handle('import-chat', async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog({
@@ -320,19 +324,50 @@ ipcMain.handle('import-chat', async () => {
 
   if (canceled || filePaths.length === 0) return;
 
-  const fileData = fs.readFileSync(filePaths[0]);
-  const parsed = JSON.parse(fileData);
+  try {
+    const fileData = fs.readFileSync(filePaths[0]);
+    const parsed = JSON.parse(fileData);
 
-  const id = `import-${Date.now()}`;
-  const filePath = path.join(chatsDir, `${id}.json`);
-  fs.writeFileSync(filePath, JSON.stringify(parsed, null, 2));
+    const id = `import-${Date.now()}`;
+    const chatDir = path.join(chatsDir, id);
+    const filePath = path.join(chatDir, 'chat.json');
 
-  const manifest = loadManifest();
-  manifest[id] = parsed[0]?.content?.slice(0, 30) || 'Imported Chat';
-  saveManifest(manifest);
+    fs.mkdirSync(chatDir, { recursive: true });
 
-  return { id, name: manifest[id] };
+    // ⚠️ Remove docs metadata if actual files are missing
+    let sanitizedDocs = [];
+    if (Array.isArray(parsed.docs)) {
+      sanitizedDocs = parsed.docs.filter((doc) => {
+        const docPath = path.join(chatDir, 'docs', doc.id, `file.${doc.ext}`);
+        return fs.existsSync(docPath);
+      });
+
+      if (sanitizedDocs.length !== parsed.docs.length) {
+        console.warn(`⚠️ Some document files are missing for imported chat ${id}.`);
+      }
+    }
+
+    const cleaned = {
+      messages: Array.isArray(parsed.messages) ? parsed.messages : [],
+      docs: sanitizedDocs,
+    };
+
+    fs.writeFileSync(filePath, JSON.stringify(cleaned, null, 2));
+
+    const name =
+      cleaned.messages[0]?.content?.slice(0, 30) || 'Imported Chat';
+
+    return {
+      id,
+      name,
+      docWarning: parsed.docs?.length && sanitizedDocs.length < parsed.docs.length,
+    };
+  } catch (err) {
+    console.error('❌ Failed to import chat:', err);
+    return null;
+  }
 });
+
 
 // --------------------App -1 long document summarization --------------------
 

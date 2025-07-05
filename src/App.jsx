@@ -222,6 +222,7 @@ function App() {
 
     // Export current chat
   const handleExport = async () => {
+    console.log('📤 Exporting chat:', chatId);
     if (!chatId) return;
     await window.chatAPI.exportChat(chatId);
   };
@@ -234,84 +235,6 @@ function App() {
       setChatId(result.id);
     }
   };
-
-
-  // async function handleDocumentUpload(e) {
-  //   const file = e.target.files[0];
-  //   if (!file || !chatId) return;
-
-  //   try {
-  //     const parsedText = await parseUploadedFile(file);
-  //     showParsedPreview(parsedText, file.name);
-
-  //     const doc = await embedAndPersistDocument(file, chatId, parsedText);
-
-  //     updateRagState(doc);
-  //     await saveAutoSummaryPrompt(doc);
-
-  //     setToast(`✅ Document uploaded and persisted. RAG ready.`);
-  //   } catch (err) {
-  //     console.error('❌ Document upload error:', err);
-  //     alert('Failed to parse or persist the document. Please try again.');
-  //   }
-  // }
-
-  async function parseUploadedFile(file) {
-    const ext = file.name.split('.').pop().toLowerCase();
-    const arrayBuffer = await file.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-
-    if (ext === 'pdf') {
-      const result = await window.chatAPI.parsePDF(uint8Array);
-      if (result.error || !result.text?.trim()) {
-        throw new Error(result.error || 'No text returned from PDF');
-      }
-      return result.text;
-    }
-
-    if (ext === 'txt' || ext === 'md') {
-      return new TextDecoder().decode(uint8Array);
-    }
-
-    throw new Error('❌ Unsupported file type. Please upload PDF, TXT, or Markdown.');
-  }
-
-  function showParsedPreview(text, name) {
-    console.log(`✅ Parsed ${name} — Length:`, text.length);
-    console.log('📄 Preview:\n', text.trim().slice(0, 500));
-  }
-
-  function updateRagState(doc) {
-    setRagData(prev => new Map(prev).set(chatId, {
-      chunks: doc.chunks,
-      embedded: doc.embeddings,
-      fileName: doc.name,
-    }));
-    setRagMode(true);
-    setDocUploaded(true);
-  }
-
-  async function saveAutoSummaryPrompt(doc) {
-    const prompt = `📄 Summarize the uploaded ${doc.name} document using its content. Highlight main sections, topics, and key takeaways.`;
-
-    const topChunks = doc.chunks.slice(0, 3).map((chunk, index) => ({
-      text: chunk,
-      index,
-      fileName: doc.name,
-    }));
-
-    const metadata = { sources: topChunks };
-
-    const userMessage = {
-      role: 'user',
-      content: prompt,
-      timestamp: new Date().toISOString(),
-    };
-
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
-    await window.chatAPI.saveChat({ id: chatId, messages: newMessages });
-  }
 
 
   async function embedChunksLocally(chunks) {
