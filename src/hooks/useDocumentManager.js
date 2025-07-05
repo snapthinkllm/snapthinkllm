@@ -30,6 +30,7 @@ export function useDocumentManager({
   ragData,
   sendMessage,
   setRagMode,
+  setSessionDocs
 }) {
   const handleDocumentUpload = async (e) => {
     const file = e.target.files[0];
@@ -84,6 +85,7 @@ export function useDocumentManager({
     }));
     setDocUploaded(true);
     setRagMode?.(true); 
+    setSessionDocs(prev => [...prev, doc])
   };
 
   const saveAutoSummaryPrompt = async (doc) => {

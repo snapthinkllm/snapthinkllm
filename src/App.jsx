@@ -224,6 +224,7 @@ function App() {
     ragData,
     sendMessage,
     setRagMode, 
+    setSessionDocs
   });
 
 

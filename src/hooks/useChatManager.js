@@ -21,7 +21,8 @@ export function useChatManager({
 
     const newChatObj = { id, name: defaultName, messages: [], docs: [] };
 
-    setSessions((prev) => [...prev, { id, name: defaultName }]);
+    // ✅ Include empty docs array here
+    setSessions((prev) => [...prev, { id, name: defaultName, docs: [] }]);
 
     await window.chatAPI.renameChat({ id, name: defaultName });
     await window.chatAPI.saveChat({ id, messages: [], docs: [] });
@@ -34,19 +35,24 @@ export function useChatManager({
     setMessages(messages);
     setSessionDocs(docs);
 
+    // ✅ Update the sessions array with docs for this chat
+    setSessions((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, docs } : s))
+    );
+
     if (docs.length > 0) {
       try {
         const loadedDocs = await loadSessionDocs(id, docs);
         const chunks = loadedDocs.flatMap((doc) => doc.chunks);
         const embeddings = loadedDocs.flatMap((doc) => doc.embeddings);
 
-        setRagData(prev => new Map(prev).set(id, {
-            docs: loadedDocs.map((doc) => ({
-              fileName: doc.name,
-              chunks: doc.chunks,
-              embeddings: doc.embeddings,
-            }))
-          }));
+        setRagData((prev) =>
+          new Map(prev).set(id, {
+            chunks,
+            embedded: embeddings,
+            fileName: loadedDocs.map((d) => d.name).join(', '),
+          })
+        );
         setRagMode(true);
         setDocUploaded(true);
         setChatId(id);
@@ -63,6 +69,7 @@ export function useChatManager({
       setChatId(id);
     }
   };
+
 
   const updateChatName = async (id, newName) => {
     console.log(`📝 Renaming chat ${id} to "${newName}"...`);
