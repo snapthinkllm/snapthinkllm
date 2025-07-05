@@ -153,23 +153,28 @@ ipcMain.on('show-chat-folder', () => {
   shell.openPath(chatsDir);
 });
 
-ipcMain.handle('delete-chat', (event, chatId) => {
+
+ipcMain.handle('delete-chat', async (event, chatId) => {
   try {
-    const filePath = path.join(chatsDir, `${chatId}.json`);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    const dirPath = path.join(chatsDir, chatId);
+
+    if (fs.existsSync(dirPath)) {
+      // Recursively delete the entire chat directory
+      fs.rmSync(dirPath, { recursive: true, force: true });
     }
 
+    // Also remove from manifest if used
     const manifest = loadManifest();
     delete manifest[chatId];
     saveManifest(manifest);
 
     return { success: true };
   } catch (err) {
-    console.error(`Error deleting chat (${chatId}):`, err);
+    console.error(`❌ Error deleting chat (${chatId}):`, err);
     throw err;
   }
 });
+
 
 // -------------------- Model Download --------------------
 let currentPullProcess = null;

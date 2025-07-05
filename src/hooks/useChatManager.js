@@ -1,4 +1,5 @@
 export function useChatManager({
+  chatId,
   setChatId,
   setMessages,
   setSessionDocs,
@@ -69,19 +70,27 @@ export function useChatManager({
     await window.chatAPI.renameChat({ id, name: newName });
   };
 
-  const deleteChat = async (id) => {
+  const deleteChat = async (id, currentChatId) => {
+    console.log(`🗑️ Deleting chat ${id}...`);
     await window.chatAPI.deleteChat(id);
-    setSessions((prev) => prev.filter((s) => s.id !== id));
+
+    setSessions((prev) => {
+      const updated = prev.filter((s) => s.id !== id);
+        if (id === currentChatId && updated.length > 0) {
+          switchChat(updated[0].id);
+        } else if (updated.length === 0) {
+          setMessages([]);
+          setChatId('');
+          setRagMode(false);
+        }
+        return updated;
+      });
+
     setRagData((prev) => {
       const copy = new Map(prev);
       copy.delete(id);
       return copy;
     });
-    setMessages([]);
-    setRagMode(false);
-    if (id === chatId) {
-      setChatId('');
-    }
   };
 
   const loadSessionDocs = async (chatId, docsMetadata) => {

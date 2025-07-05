@@ -27,6 +27,9 @@ export function useDocumentManager({
   setStatus,
   setProgress,
   setDetail,
+  ragData,
+  sendMessage,
+  setRagMode,
 }) {
   const handleDocumentUpload = async (e) => {
     const file = e.target.files[0];
@@ -80,6 +83,7 @@ export function useDocumentManager({
       fileName: doc.name,
     }));
     setDocUploaded(true);
+    setRagMode?.(true); 
   };
 
   const saveAutoSummaryPrompt = async (doc) => {
@@ -103,7 +107,7 @@ export function useDocumentManager({
   };
 
   const handleSummarizeDoc = () => {
-    const data = new Map(setRagData).get(chatId);
+    const data = ragData.get(chatId);
     if (!data) {
       setToast('❌ No document found for summarization. Please upload a document first.');
       return;
@@ -177,7 +181,8 @@ export function useDocumentManager({
   const sendRAGQuestion = async (question) => {
     await ensureEmbeddingModel(setDownloading, setStatus, setProgress, setDetail); 
   
-    const data = new Map(setRagData).get(chatId);
+    const data = ragData.get(chatId);
+    console.log('🔍 Sending RAG question:', question, data);
     if (!question.trim() || !data?.embedded?.length) return;
 
     const res = await fetch('http://localhost:11434/api/embeddings', {
@@ -188,6 +193,8 @@ export function useDocumentManager({
         prompt: question,
       }),
     });
+
+    ;
 
     const questionEmbeddingData = await res.json();
     const questionEmbedding = questionEmbeddingData.embedding;
@@ -233,8 +240,8 @@ export function useDocumentManager({
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
 
-    // This relies on external sendMessage() — maybe passed in later
-    // sendMessage(prompt, metadata);
+    console.log('🧠 Calling sendMessage with metadata:', metadata);
+    sendMessage(prompt, metadata);
   };
 
   async function ensureEmbeddingModel() {

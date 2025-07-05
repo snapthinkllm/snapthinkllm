@@ -44,6 +44,7 @@ function App() {
     deleteChat,
     loadSessionDocs,
   } = useChatManager({
+    chatId,
     setChatId,
     setMessages,
     setSessionDocs,
@@ -53,22 +54,6 @@ function App() {
     setSessions,
   });
 
-  const {
-    handleDocumentUpload,
-    handleSummarizeDoc,
-    sendRAGQuestion,
-  } = useDocumentManager({
-    chatId,
-    messages,
-    setMessages,
-    setToast,
-    setRagData,
-    setDocUploaded,
-    setDownloading, // ✅ Add these 4
-    setStatus,
-    setProgress,
-    setDetail,
-  });
 
 
 
@@ -220,6 +205,26 @@ function App() {
 
     setLoading(false);
   };
+
+  const {
+    handleDocumentUpload,
+    handleSummarizeDoc,
+    sendRAGQuestion,
+  } = useDocumentManager({
+    chatId,
+    messages,
+    setMessages,
+    setToast,
+    setRagData,
+    setDocUploaded,
+    setDownloading, // ✅ Add these 4
+    setStatus,
+    setProgress,
+    setDetail,
+    ragData,
+    sendMessage,
+    setRagMode, 
+  });
 
 
     // Export current chat
