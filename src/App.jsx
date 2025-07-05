@@ -328,7 +328,7 @@ function App() {
       )}
 
       {/* Main Chat Column */}
-      <div className="flex flex-col flex-1 h-full">
+      <div className="flex flex-col flex-1 h-full scrollbar-thin scrollbar-thumb-amber-600 scrollbar-track-gray-800">
 
         {/* Header */}
           <ChatHeader

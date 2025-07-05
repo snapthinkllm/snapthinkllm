@@ -142,7 +142,7 @@ export default function Sidebar({
       )}
 
       {/* Scrollable panel content */}
-      <div className="flex-1 overflow-y-auto overflow-x-auto pr-1">{renderPanel()}</div>
+      <div className="flex-1 overflow-y-auto overflow-x-auto pr-1 scrollbar-thin scrollbar-thumb-blue-950 scrollbar-track-slate-900 ">{renderPanel()}</div>
     </aside>
   );
 }

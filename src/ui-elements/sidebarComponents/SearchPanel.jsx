@@ -12,7 +12,7 @@ export default function SearchPanel({ onSearch, searchResults, collapsed }) {
   if (collapsed) return null; // 🔒 hide when sidebar is collapsed
 
   return (
-    <div className="p-3 text-sm text-gray-700 dark:text-gray-200 h-full flex flex-col">
+    <div className="p-3 text-sm text-gray-700 dark:text-gray-200  flex flex-col">
       <form onSubmit={handleSubmit} className="flex space-x-2 mb-4">
         <input
           type="text"
@@ -30,7 +30,7 @@ export default function SearchPanel({ onSearch, searchResults, collapsed }) {
         </button>
       </form>
 
-      <div className="overflow-y-auto overflow-x-hidden flex-1 pr-1">
+      <div className="overflow-y-auto flex-1 pr-1 scrollbar-thin scrollbar-thumb-amber-600 scrollbar-track-slate-900">
         {searchResults?.length > 0 && (
           <ul className="space-y-2">
             {searchResults.map((res, i) => (
