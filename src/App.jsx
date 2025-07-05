@@ -54,20 +54,22 @@ function App() {
   });
 
   const {
-  handleDocumentUpload,
-  handleSummarizeDoc,
-  sendRAGQuestion,
-} = useDocumentManager({
-  chatId,
-  messages,
-  ragData,
-  setMessages,
-  setToast,
-  setInput,
-  setRagMode,
-  setDocUploaded,
-  setRagData,
-});
+    handleDocumentUpload,
+    handleSummarizeDoc,
+    sendRAGQuestion,
+  } = useDocumentManager({
+    chatId,
+    messages,
+    setMessages,
+    setToast,
+    setRagData,
+    setDocUploaded,
+    setDownloading, // ✅ Add these 4
+    setStatus,
+    setProgress,
+    setDetail,
+  });
+
 
 
   useEffect(() => {
@@ -236,37 +238,6 @@ function App() {
     }
   };
 
-
-  async function embedChunksLocally(chunks) {
-    console.log('🔄 Ensuring embedding model is ready...',downloading, status, progress, detail);
-    await ensureEmbeddingModel(setDownloading, setStatus, setProgress, setDetail);
- 
-    const embedded = [];
-    console.log('🔍 Embedding chunks...');
-    console.time('Embedding time');
-
-    for (const chunk of chunks) {
-      const res = await fetch('http://localhost:11434/api/embeddings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'nomic-embed-text', // Replace with an embedding-capable model
-          prompt: chunk,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.embedding) {
-        embedded.push({ chunk, embedding: data.embedding });
-      } else {
-        console.error('❌ Failed to embed:', chunk.slice(0, 30));
-      }
-    }
-    console.timeEnd('Embedding time');
-
-    return embedded;
-  }
-
   function renderWithThinking(text, sources = []) {
     const parts = text.split(/(<think>[\s\S]*?<\/think>)/g);
 
@@ -328,73 +299,12 @@ function App() {
     );
   };
 
-  async function ensureEmbeddingModel() {
-    console.log('🔄 Checking for embedding model...');
-    const modelName = 'nomic-embed-text:latest';
-    const models = await window.chatAPI.getDownloadedModels();
-    const isPresent = models.some(m => (typeof m === 'string' ? m : m.name) === modelName);
-
-    if (isPresent) return;
-    console.log(`📥 Downloading embedding model: ${modelName}`);
-    setDownloading(modelName);
-    setStatus('starting');
-
-    await window.chatAPI.downloadModel(modelName);
-    setDownloading(null);
-    setStatus(null);
-    setProgress(null);
-
-  };
-
   const handleCancelDownload = () => {
     window.chatAPI.cancelDownload?.();
     setDownloading(null);
     setStatus(null);
     setProgress(null);
   };
-
-
-  async function embedAndPersistDocument(file, chatId, parsedText) {
-    const docId = uuidv4();
-    const ext = file.name.split('.').pop();
-
-    // 1. Chunk text
-    const chunks = chunkText(parsedText, 300, 50);
-
-    // 2. Embed
-    const embeddings = await embedChunksLocally(chunks);
-
-    // 3. Persist file + data to disk
-    const buffer = await file.arrayBuffer();
-    await window.chatAPI.persistDoc({
-      chatId,
-      docId,
-      fileName: file.name,
-      ext,
-      fileBuffer: Array.from(new Uint8Array(buffer)),
-      chunks,
-      embeddings,
-    });
-
-    // 4. Update metadata
-    const existingMeta = await window.chatAPI.loadDocMetadata?.(chatId);
-    const docsMetadata = Array.isArray(existingMeta) ? existingMeta : [];
-    docsMetadata.push({ id: docId, name: file.name, ext });
-
-    console.log(`📄 Persisting doc metadata for ${chatId}:`, docsMetadata);
-    await window.chatAPI.updateChatDocs({ chatId, docs: docsMetadata });
-
-    await window.chatAPI.persistDocMetadata({ chatId, docsMetadata });
-
-    // 5. Return doc
-    return {
-      id: docId,
-      name: file.name,
-      filePath: `chats/${chatId}/docs/${docId}/file.${ext}`,
-      chunks,
-      embeddings,
-    };
-  }
 
 
   return (

@@ -23,6 +23,10 @@ export function useDocumentManager({
   setToast,
   setRagData,
   setDocUploaded,
+  setDownloading, // ✅ Add here too
+  setStatus,
+  setProgress,
+  setDetail,
 }) {
   const handleDocumentUpload = async (e) => {
     const file = e.target.files[0];
@@ -112,6 +116,7 @@ export function useDocumentManager({
   };
 
   const embedChunksLocally = async (chunks) => {
+    await ensureEmbeddingModel(setDownloading, setStatus, setProgress, setDetail);
     console.log('🔍 Embedding chunks...');
     const embedded = [];
 
@@ -170,6 +175,8 @@ export function useDocumentManager({
   };
 
   const sendRAGQuestion = async (question) => {
+    await ensureEmbeddingModel(setDownloading, setStatus, setProgress, setDetail); 
+  
     const data = new Map(setRagData).get(chatId);
     if (!question.trim() || !data?.embedded?.length) return;
 
@@ -229,6 +236,32 @@ export function useDocumentManager({
     // This relies on external sendMessage() — maybe passed in later
     // sendMessage(prompt, metadata);
   };
+
+  async function ensureEmbeddingModel() {
+    console.log('🔄 Checking for embedding model...');
+    const modelName = 'nomic-embed-text:latest';
+    const models = await window.chatAPI.getDownloadedModels();
+    const isPresent = models.some(m => (typeof m === 'string' ? m : m.name) === modelName);
+
+    if (isPresent) return;
+    console.log(`📥 Downloading embedding model: ${modelName}`);
+    setDownloading(modelName);
+    setStatus('starting');
+
+    await window.chatAPI.downloadModel(modelName);
+    setDownloading(null);
+    setStatus(null);
+    setProgress(null);
+
+  };
+
+  const handleCancelDownload = () => {
+    window.chatAPI.cancelDownload?.();
+    setDownloading(null);
+    setStatus(null);
+    setProgress(null);
+  };
+
 
   return {
     handleDocumentUpload,

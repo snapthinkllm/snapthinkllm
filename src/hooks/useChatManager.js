@@ -39,11 +39,13 @@ export function useChatManager({
         const chunks = loadedDocs.flatMap((doc) => doc.chunks);
         const embeddings = loadedDocs.flatMap((doc) => doc.embeddings);
 
-        setRagData((prev) => new Map(prev).set(id, {
-          chunks,
-          embedded: embeddings,
-          fileName: loadedDocs.map((d) => d.name).join(', '),
-        }));
+        setRagData(prev => new Map(prev).set(id, {
+            docs: loadedDocs.map((doc) => ({
+              fileName: doc.name,
+              chunks: doc.chunks,
+              embeddings: doc.embeddings,
+            }))
+          }));
         setRagMode(true);
         setDocUploaded(true);
         setChatId(id);
