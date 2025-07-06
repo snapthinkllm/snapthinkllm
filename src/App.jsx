@@ -352,7 +352,7 @@ function App() {
           />
 
         {/* Main Content */}
-          <main className="flex-1 overflow-y-auto p-6 space-y-4">
+          <main className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin scrollbar-thumb-slate-500 dark:scrollbar-track-gray-800 scrollbar-track-gray-200 ">
             {!modelSelected ? (
               <ModelSelector onSelect={setModelSelected} />
                         ) : !chatId ? (
