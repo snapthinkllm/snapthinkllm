@@ -70,7 +70,7 @@ export default function ChatActions({
             }`}
           >
             <div className="flex justify-between items-center">
-              {editingChatId === s.id ? (
+              {editingChatId === s.id ? (!collapsed &&
                 <input
                   autoFocus
                   value={editedName}
@@ -86,7 +86,7 @@ export default function ChatActions({
                       : 'bg-white dark:bg-zinc-900 text-black dark:text-white'
                   }`}
                 />
-              ) : (
+              ) : !collapsed && ( 
                 <button
                   onClick={() => switchChat(s.id)}
                   onDoubleClick={() => startRename(s.id, s.name)}
