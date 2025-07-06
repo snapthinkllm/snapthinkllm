@@ -64,7 +64,7 @@ export default function Sidebar({
       } border-l border-gray-200 dark:border-gray-700 bg-[#f4f7fb] dark:bg-gray-800/80 backdrop-blur space-y-4 flex flex-col`}
     >
       {/* Collapse / Expand Toggle */}
-      <div className="flex justify-end">
+      <div className="flex justify-center">
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="flex items-center gap-1 px-2 py-1 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 shadow hover:bg-zinc-100 dark:hover:bg-zinc-600 transition"
