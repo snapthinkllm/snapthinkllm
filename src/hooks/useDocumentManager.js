@@ -245,18 +245,30 @@ export function useDocumentManager({
 
 
 
-  async function ensureEmbeddingModel() {
+  async function ensureEmbeddingModel(setDownloading, setStatus, setProgress, setDetail) {
     console.log('🔄 Checking for embedding model...');
     const modelName = 'nomic-embed-text:latest';
     const models = await window.chatAPI.getDownloadedModels();
     const isPresent = models.some(m => (typeof m === 'string' ? m : m.name) === modelName);
 
     if (isPresent) return;
+
+    const confirmed = window.confirm(
+      `The embedding model "${modelName}" is required to understand and search within documents.\n\n` +
+      `This model generates text embeddings used for semantic search and question answering over documents (RAG).\n\n` +
+      `Would you like to download it now? (~100MB)`
+    );
+
+    if (!confirmed) {
+      throw new Error("User declined to download embedding model");
+    }
+
     console.log(`📥 Downloading embedding model: ${modelName}`);
     setDownloading(modelName);
     setStatus('starting');
 
     await window.chatAPI.downloadModel(modelName);
+
     setDownloading(null);
     setStatus(null);
     setProgress(null);
