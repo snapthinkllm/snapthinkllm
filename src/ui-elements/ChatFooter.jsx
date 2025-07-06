@@ -3,6 +3,7 @@ import {
   StickyNote,
   SendHorizonal,
 } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 export default function ChatFooter({
   chatId,
@@ -22,6 +23,15 @@ export default function ChatFooter({
     await handleDocumentUpload(e);
     setDocUploaded(true);
   };
+
+  const inputRef = useRef();
+  
+  useEffect(() => {
+    if (chatId && !loading) {
+      inputRef.current.focus();
+    }
+  }, [chatId, loading]);
+
 
   const handleSend = () => {
     if (!input.trim()) return;
@@ -96,6 +106,7 @@ export default function ChatFooter({
       {/* Input + Send */}
       <div className="flex items-center space-x-2">
         <input
+          ref={inputRef}
           className={`flex-1 p-3 rounded-xl border bg-white dark:bg-gray-900 text-black dark:text-white shadow-sm ${
             loading ? 'opacity-60 cursor-not-allowed' : ''
           }`}
