@@ -65,8 +65,8 @@ export default function ChatActions({
             key={s.id}
             className={`group rounded-xl px-3 py-2 transition-all ${
               s.id === chatId
-                ? 'bg-purple-600 text-white shadow-md'
-                : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-white/90 dark:text-zinc-100'
+                ? 'text-white shadow-md bg-gradient-to-r from-[#6366f1] to-[#818cf8]  rounded-lg hover:from-[#4f46e5] hover:to-[#6366f1] '
+                : 'hover:bg-zinc-400 dark:hover:bg-zinc-500 text-black dark:text-zinc-100'
             }`}
           >
             <div className="flex justify-between items-center">
@@ -82,7 +82,7 @@ export default function ChatActions({
                   }}
                   className={`w-full text-sm px-2 py-1 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                     s.id === chatId
-                      ? 'bg-purple-700 text-white'
+                      ? 'bg-purple-700 dark:text-white text-white'
                       : 'bg-white dark:bg-zinc-900 text-black dark:text-white'
                   }`}
                 />
@@ -130,17 +130,23 @@ export default function ChatActions({
             </div>
 
             {!collapsed && s.docs?.length > 0 && (
-              <ul className="mt-2 pl-2 border-l border-white/10 space-y-0.5">
-                {s.docs.map((doc) => (
-                  <li
-                    key={doc.id}
-                    className="flex items-center text-xs text-muted-foreground truncate gap-1"
+                  <ul
+                    className="mt-2 pl-2 border-l border-white/10 space-y-0.5 shadow-sm
+                      bg-gradient-to-r from-blue-100 to-blue-200 dark:from-gray-700 dark:to-gray-800
+                      text-indigo-800 dark:text-indigo-200 rounded-lg transition-all"
                   >
-                    📄 <span className="truncate">{doc.name}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
+                    <li className="text-xs font-medium text-indigo-800 dark:text-indigo-300">Session Documents:</li>
+                    {s.docs.map((doc) => (
+                      <li
+                        key={doc.id}
+                        className="flex items-center text-xs text-gray-600 dark:text-gray-300 truncate gap-1"
+                      >
+                        📄 <span className="truncate">{doc.name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
           </div>
         ))}
       </div>
