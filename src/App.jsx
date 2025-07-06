@@ -9,6 +9,7 @@ import ChatFooter from './ui-elements/ChatFooter';
 import DownloadProgressModal from './ui-elements/DownloadProgressModal';
 import { useChatManager } from './hooks/useChatManager'; 
 import { useDocumentManager } from './hooks/useDocumentManager';
+import { MessageSquarePlus } from 'lucide-react';
 
 function App() {
   const [chatId, setChatId] = useState('');
@@ -225,7 +226,9 @@ function App() {
     ragData,
     sendMessage,
     setRagMode, 
-    setSessionDocs
+    setSessionDocs,
+    modelSelected, 
+    setModelSelected
   });
 
 
@@ -344,10 +347,17 @@ function App() {
             {!modelSelected ? (
               <ModelSelector onSelect={setModelSelected} />
                         ) : !chatId ? (
-                <div className="text-center mt-32 text-gray-600 dark:text-gray-400">
-                  <h2 className="text-xl font-semibold mb-2">👋 {modelSelected} Model selected!</h2>
-                  <p className="text-sm italic">
-                    Click the <span className="font-semibold text-blue-500">chat icon</span> on the sidebar to get started.
+                <div className="mt-32 text-center text-gray-600 dark:text-gray-400">
+                  <h2 className="text-2xl font-semibold mb-3">
+                    👋 {modelSelected} Model Selected!
+                  </h2>
+                  <p className="text-sm italic flex items-center justify-center gap-1 text-center">
+                    Click the
+                    <span className="inline-flex items-center font-medium text-blue-500">
+                      <MessageSquarePlus size={16} className="mx-1" />
+                      chat icon
+                    </span>
+                    on the sidebar to get started.
                   </p>
                 </div>
                 ): (

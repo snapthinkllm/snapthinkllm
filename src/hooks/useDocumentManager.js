@@ -36,7 +36,9 @@ export function useDocumentManager({
   ragData,
   sendMessage,
   setRagMode,
-  setSessionDocs
+  setSessionDocs,
+  modelSelected,
+  setModelSelected
 }) {
   const handleDocumentUpload = async (e) => {
     const file = e.target.files[0];
@@ -272,6 +274,7 @@ export function useDocumentManager({
     setDownloading(null);
     setStatus(null);
     setProgress(null);
+    setModelSelected(modelSelected)
 
   };
 

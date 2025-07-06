@@ -59,73 +59,84 @@ export default function ChatActions({
         </button>
       )}
 
-      <div className="flex-1 overflow-y-auto space-y-2 mt-2">
+      <div className="flex-1 overflow-y-auto space-y-2 mt-3 pr-1">
         {sortedSessions.map((s) => (
-        <div key={s.id} className="flex flex-col group">
-        <div className="flex items-center justify-between">
-            {editingChatId === s.id ? (
-              <input
-                autoFocus
-                value={editedName}
-                onChange={(e) => setEditedName(e.target.value)}
-                onBlur={() => saveChatName(s.id)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') saveChatName(s.id);
-                  if (e.key === 'Escape') cancelRename();
-                }}
-                className={`flex-1 text-sm px-2 py-1 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  s.id === chatId
-                    ? 'bg-[#d6dfff] dark:bg-purple-600 text-black dark:text-white font-semibold'
-                    : 'bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100'
-                }`}
-            />
-            ) : (
-            <button
-                onClick={() => switchChat(s.id)}
-                onDoubleClick={() => startRename(s.id, s.name)}
-                className={`flex-1 text-left px-2 py-2 rounded-lg group-hover:pr-2 truncate ${
-                s.id === chatId
-                    ? 'bg-[#d6dfff] dark:bg-purple-600 text-black dark:text-white font-semibold'
-                    : 'hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-100'
-                }`}
-            >
-                {!collapsed && <span className="truncate">{s.name}</span>}
-            </button>
-            )}
+          <div
+            key={s.id}
+            className={`group rounded-xl px-3 py-2 transition-all ${
+              s.id === chatId
+                ? 'bg-purple-600 text-white shadow-md'
+                : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-white/90 dark:text-zinc-100'
+            }`}
+          >
+            <div className="flex justify-between items-center">
+              {editingChatId === s.id ? (
+                <input
+                  autoFocus
+                  value={editedName}
+                  onChange={(e) => setEditedName(e.target.value)}
+                  onBlur={() => saveChatName(s.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') saveChatName(s.id);
+                    if (e.key === 'Escape') cancelRename();
+                  }}
+                  className={`w-full text-sm px-2 py-1 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    s.id === chatId
+                      ? 'bg-purple-700 text-white'
+                      : 'bg-white dark:bg-zinc-900 text-black dark:text-white'
+                  }`}
+                />
+              ) : (
+                <button
+                  onClick={() => switchChat(s.id)}
+                  onDoubleClick={() => startRename(s.id, s.name)}
+                  className="flex-1 text-left truncate"
+                >
+                  <span
+                    className={`font-medium text-sm truncate ${
+                      s.id === chatId ? 'text-white' : ''
+                    }`}
+                  >
+                    {s.name}
+                  </span>
+                </button>
+              )}
 
               {!collapsed && editingChatId !== s.id && (
-                <>
+                <div className="flex gap-1 ml-2">
                   <button
-                    className="text-gray-500 hover:text-blue-600 dark:hover:text-blue-300 text-sm ml-2 hidden group-hover:inline"
-                    title="Rename chat"
+                    className="text-gray-400 hover:text-blue-400 hidden group-hover:inline"
                     onClick={(e) => {
                       e.stopPropagation();
                       startRename(s.id, s.name);
                     }}
+                    title="Rename chat"
                   >
                     <Pencil size={14} />
                   </button>
                   <button
-                    className="text-red-500 hover:text-red-700 text-sm ml-1"
-                    title="Delete chat"
+                    className="text-red-400 hover:text-red-600"
                     onClick={(e) => {
                       e.stopPropagation();
                       setChatToDelete(s);
                       setShowConfirm(true);
                     }}
+                    title="Delete chat"
                   >
-                    🗙
+                    ✕
                   </button>
-                </>
+                </div>
               )}
             </div>
 
-            {/* 📄 Uploaded documents under chat */}
             {!collapsed && s.docs?.length > 0 && (
-              <ul className="ml-4 mt-1 space-y-1 text-xs text-gray-600 dark:text-gray-400">
+              <ul className="mt-2 pl-2 border-l border-white/10 space-y-0.5">
                 {s.docs.map((doc) => (
-                  <li key={doc.id} className="truncate">
-                    📄 {doc.name}
+                  <li
+                    key={doc.id}
+                    className="flex items-center text-xs text-muted-foreground truncate gap-1"
+                  >
+                    📄 <span className="truncate">{doc.name}</span>
                   </li>
                 ))}
               </ul>
