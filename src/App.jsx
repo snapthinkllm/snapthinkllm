@@ -248,6 +248,14 @@ function App() {
     }
   };
 
+  function escapeHtmlDangerousTags(input) {
+    return input
+      .replace(/<textarea/gi, '&lt;textarea')
+      .replace(/<\/textarea>/gi, '&lt;/textarea&gt;')
+      .replace(/<script/gi, '&lt;script')
+      .replace(/<\/script>/gi, '&lt;/script&gt;');
+  }
+ 
   function renderWithThinking(text, sources = []) {
     const parts = text.split(/(<think>[\s\S]*?<\/think>)/g);
 
@@ -259,6 +267,7 @@ function App() {
 
           if (trimmed.startsWith('<think>') && trimmed.endsWith('</think>')) {
             const content = trimmed.slice(7, -8).trim();
+            const safeContent = escapeHtmlDangerousTags(content);
             return (
               <div
                 key={`think-${index}`}
@@ -267,7 +276,7 @@ function App() {
                 💭
                 <div className="prose dark:prose-invert max-w-none">
                   <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-                    {content}
+                    {safeContent}
                   </ReactMarkdown>
                 </div>
               </div>

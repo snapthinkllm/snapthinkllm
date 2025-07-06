@@ -24,8 +24,8 @@ export default function ChatFooter({
     setDocUploaded(true);
   };
 
-  const inputRef = useRef();
-  
+  const inputRef = useRef(null);
+
   useEffect(() => {
     if (chatId && !loading) {
       inputRef.current.focus();
@@ -105,16 +105,22 @@ export default function ChatFooter({
 
       {/* Input + Send */}
       <div className="flex items-center space-x-2">
-        <input
+        <textarea
           ref={inputRef}
-          className={`flex-1 p-3 rounded-xl border bg-white dark:bg-gray-900 text-black dark:text-white shadow-sm ${
+          className={`flex-1 p-3 rounded-xl border bg-white dark:bg-gray-900 text-black dark:text-white shadow-sm resize-none overflow-hidden min-h-[48px] max-h-[200px] leading-relaxed ${
             loading ? 'opacity-60 cursor-not-allowed' : ''
           }`}
           placeholder={ragMode ? 'Ask your document...' : 'Type a message...'}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => {
+            setInput(e.target.value);
+            adjustTextareaHeight(e);
+          }}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !loading) handleSend();
+            if (e.key === 'Enter' && !e.shiftKey && !loading) {
+              e.preventDefault(); // prevent newline
+              handleSend();
+            }
           }}
           disabled={!chatId || loading}
         />
