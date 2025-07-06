@@ -214,7 +214,7 @@ export function useDocumentManager({
     // ✅ Get top 3 chunks
     const topChunks = scored
       .sort((a, b) => b.score - a.score)
-      .slice(0, 3)
+      .slice(0, 7)
       .map(({ chunk, index, fileName }) => ({
         chunk,
         sourceIndex: index,
