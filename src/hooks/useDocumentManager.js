@@ -175,30 +175,58 @@ export function useDocumentManager({
 
   const sendRAGQuestion = async (question) => {
     await ensureEmbeddingModel(setDownloading, setStatus, setProgress, setDetail);
+
+    console.log('🔄 Sending RAG question:', question);
     const data = ragData.get(chatId);
-    if (!question.trim() || !data?.embedded?.length) return;
+    console.log('🔄 RAG data:', data);
 
+    if (!question.trim()) return;
+
+    // ✅ Filter docs with valid embeddings
+    const embeddedDocs = data?.docs?.filter(
+      doc => Array.isArray(doc.embeddings) && doc.embeddings.length > 0
+    );
+
+    if (!embeddedDocs || embeddedDocs.length === 0) {
+      toast.warning("No embedded chunks found. Please upload and embed at least one document.");
+      return;
+    }
+
+    // ✅ Flatten all embedded chunks
+    const embeddedChunks = embeddedDocs.flatMap(doc =>
+      doc.embeddings.map((embedding, idx) => ({
+        chunk: doc.chunks[idx],
+        embedding,
+        fileName: doc.fileName,
+      }))
+    );
+
+    // ✅ Embed the question
     const questionEmbedding = await getEmbedding(question);
-
-    const scored = data.embedded.map(({ chunk, embedding }, index) => ({
+    // ✅ Score chunks
+    const scored = embeddedChunks.map(({ chunk, embedding, fileName }, index) => ({
       chunk,
-      score: cosineSimilarity(questionEmbedding, embedding),
+      fileName,
+      score: cosineSimilarity(questionEmbedding, embedding.embedding),
       index,
     }));
 
+    // ✅ Get top 3 chunks
     const topChunks = scored
       .sort((a, b) => b.score - a.score)
       .slice(0, 3)
-      .map(({ chunk, index }) => ({
+      .map(({ chunk, index, fileName }) => ({
         chunk,
         sourceIndex: index,
+        fileName,
       }));
 
+    // ✅ Metadata for display
     const metadata = {
       sources: topChunks.map((item) => ({
         text: item.chunk,
         index: item.sourceIndex,
-        fileName: data.fileName || 'Uploaded Document',
+        fileName: item.fileName || 'Uploaded Document',
       })),
     };
 
@@ -214,6 +242,7 @@ export function useDocumentManager({
     setMessages(newMessages);
     sendMessage(prompt, metadata);
   };
+
 
 
   async function ensureEmbeddingModel() {
