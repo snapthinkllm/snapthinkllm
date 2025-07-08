@@ -24,12 +24,12 @@ export default function ChatHeader({
           {/* Logo container (resize as needed) */}
           <div className="h-10 w-auto shrink-0">
             <img
-              src="/logos/snapthink-light.png"
+              src="./logos/snapthink-light.png"
               alt="SnapThink Logo"
               className="h-full w-auto block dark:hidden"
             />
             <img
-              src="/logos/snapthink-v2-dark.png"
+              src="./logos/snapthink-dark.png"
               alt="SnapThink Logo"
               className="h-full w-auto hidden dark:block"
             />
