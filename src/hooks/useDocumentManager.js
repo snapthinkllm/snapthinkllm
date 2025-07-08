@@ -105,7 +105,7 @@ export function useDocumentManager({
 
 
   const saveAutoSummaryPrompt = async (doc) => {
-    const prompt = `📄 Summarize the uploaded ${doc.name} document using its content. Highlight main sections, topics, and key takeaways.`;
+    const prompt = `📄 Summarizing the uploaded ${doc.name} document using its content. Highlight main sections, topics, and key takeaways.`;
 
     const topChunks = doc.chunks.slice(0, 3).map((chunk, index) => ({
       text: chunk,

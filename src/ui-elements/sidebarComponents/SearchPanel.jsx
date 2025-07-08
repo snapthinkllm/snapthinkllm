@@ -17,7 +17,7 @@ export default function SearchPanel({ onSearch, searchResults, collapsed }) {
         <input
           type="text"
           placeholder="Search uploaded docs..."
-          className="flex-1 px-3 py-2 rounded-md border dark:bg-zinc-800 dark:border-zinc-600 dark:text-white"
+          className="flex-1 px-0.5 py-2 rounded-md border dark:bg-zinc-800 dark:border-zinc-600 dark:text-white"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -29,17 +29,21 @@ export default function SearchPanel({ onSearch, searchResults, collapsed }) {
           <Search size={18} />
         </button>
       </form>
+      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+          Semantic search is isolated to documents uploaded in this chat session for better user experience.
+      </p>
 
       <div className="overflow-y-auto flex-1 pr-1 scrollbar-thin scrollbar-thumb-amber-600 scrollbar-track-slate-900">
         {searchResults?.length > 0 && (
           <ul className="space-y-2">
             {searchResults.map((res, i) => (
-              <li key={i} className="bg-zinc-100 dark:bg-zinc-800 p-2 rounded shadow-sm">
-                <div className="font-medium text-blue-700 dark:text-blue-300">{res.fileName}</div>
-                <div className="text-xs break-words whitespace-pre-wrap">
+              <li key={i} className="bg-zinc-100 dark:bg-slate-700 p-2 rounded shadow-sm">
+                <div className="font-medium text-blue-700 dark:text-white italic">{res.fileName}</div>
+                <hr className="my-2 border-gray-300 dark:border-blue-300" />
+                <div className="text-xs break-words whitespace-pre-wrap font-mono">
                   {res.chunk.slice(0, 200)}...
                 </div>
-                <div className="text-[10px] text-gray-500">Score: {res.score.toFixed(3)}</div>
+                <div className="text-[10px] text-grey-500 dark:text-gray-300 italic">Score: {res.score.toFixed(3)}</div>
               </li>
             ))}
           </ul>
