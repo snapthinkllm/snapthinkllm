@@ -38,6 +38,12 @@ export default function ChatFooter({
     ragMode ? sendRAGQuestion(input) : sendMessage();
   };
 
+  function adjustTextareaHeight(textarea) {
+    if (!textarea) return;
+    textarea.style.height = 'auto'; // Reset height
+    textarea.style.height = `${textarea.scrollHeight}px`; // Adjust to content
+  }
+
   return (
     <footer className="p-4 bg-white/70 dark:bg-gray-800/80 backdrop-blur border-t border-gray-300 dark:border-gray-700">
       {/* Action Buttons */}
@@ -114,7 +120,7 @@ export default function ChatFooter({
           value={input}
           onChange={(e) => {
             setInput(e.target.value);
-            adjustTextareaHeight(e);
+            adjustTextareaHeight(e.target);
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey && !loading) {

@@ -130,6 +130,7 @@ export function useDocumentManager({
       setToast('❌ No document found for summarization. Please upload a document first.');
       return;
     }
+    console.log('🔄 Summarizing document:', data);
 
     const allText = data.chunks.join(' ');
     const summarizePrompt = `📄 Summarize the uploaded document below.\n\n${allText}`;
@@ -176,6 +177,7 @@ export function useDocumentManager({
   };
 
   const sendRAGQuestion = async (question) => {
+    console.log('🔄 Sending RAG question:', question);
     await ensureEmbeddingModel(setDownloading, setStatus, setProgress, setDetail);
 
     console.log('🔄 Sending RAG question:', question);
@@ -239,6 +241,9 @@ export function useDocumentManager({
       content: prompt,
       timestamp: new Date().toISOString(),
     };
+
+    console.log('🔄 Sending user message in RAG:', userMessage);
+    console.log('🔄 RAG metadata:',prompt, metadata);
 
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
