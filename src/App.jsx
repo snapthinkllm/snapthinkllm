@@ -407,10 +407,10 @@ function App() {
                 <div className="flex justify-center mt-2">
                   <div className="inline-block text-xs font-mono px-4 py-2 text-gray-700 dark:text-gray-300 bg-white/40 dark:bg-gray-700/40 backdrop-blur rounded-md shadow">
                     <p className="whitespace-pre-wrap text-center">
-                      🤖 Model: <span className="font-semibold">{modelSelected}</span> |
+                      {/*🤖 Model: <span className="font-semibold">{modelSelected}</span> |
                       🧮 Tokens: <span className="font-semibold">{stats.totalTokens}</span> |
                       ⚡ Speed: <span className="font-semibold">{stats.tokensPerSecond}/s</span> |
-                      🧠 Context: <span className="font-semibold">{stats.contextTokens}</span>
+                      🧠 Context: <span className="font-semibold">{stats.contextTokens}</span>*/}
                     </p>
                   </div>
                 </div>

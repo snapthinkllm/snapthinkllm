@@ -19,7 +19,7 @@ function createWindow() {
 
   win.setMenu(null);
 
-  if (false) {
+  if (true) {
     win.loadURL('http://localhost:5173');
     win.webContents.openDevTools();
   } else {
