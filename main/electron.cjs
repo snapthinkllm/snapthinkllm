@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { spawn, exec } = require('child_process');
 const { dialog } = require('electron');
 const si = require('systeminformation');
@@ -19,7 +20,7 @@ function createWindow() {
 
   win.setMenu(null);
 
-  if (false) {
+  if (true) {
     win.loadURL('http://localhost:5173');
     win.webContents.openDevTools();
   } else {
@@ -524,7 +525,35 @@ ipcMain.on('update-chat-docs', (e, { chatId, docs }) => {
   }
 });
 
+//--------------------- Python Code Execution --------------------
 
+ipcMain.handle('run-python', async (event, code) => {
+  const tempFile = path.join(os.tmpdir(), `snapthink_${Date.now()}.py`);
+
+  try {
+    fs.writeFileSync(tempFile, code, 'utf-8');
+
+    return await new Promise((resolve) => {
+      const proc = spawn('python3', [tempFile]);
+
+      let output = '';
+      let error = '';
+
+      proc.stdout.on('data', (data) => (output += data.toString()));
+      proc.stderr.on('data', (data) => (error += data.toString()));
+
+      proc.on('close', (code) => {
+        fs.unlinkSync(tempFile); // Cleanup
+        resolve({
+          success: code === 0,
+          result: code === 0 ? output : error,
+        });
+      });
+    });
+  } catch (err) {
+    return { success: false, result: `Internal error: ${err.message}` };
+  }
+});
 
 // -------------------- App Lifecycle --------------------
 app.whenReady().then(async () => {

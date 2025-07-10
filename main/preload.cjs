@@ -44,4 +44,6 @@ contextBridge.exposeInMainWorld('chatAPI', {
 
   updateChatDocs: ({ chatId, docs }) => ipcRenderer.send('update-chat-docs', { chatId, docs }),
 
+  runPythonCode: (code) => ipcRenderer.invoke('run-python', code),
+
 });

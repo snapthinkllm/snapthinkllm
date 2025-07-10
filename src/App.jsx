@@ -207,6 +207,29 @@ function App() {
     setLoading(false);
   };
 
+  function extractPythonCode(markdown) {
+    const match = markdown.match(/```python\s+([\s\S]*?)```/);
+    return match ? match[1] : null;
+  }
+
+  async function runPython(codeMarkdown) {
+    console.log(' Running Python code from markdown:', codeMarkdown);
+    const code = extractPythonCode(codeMarkdown);
+    if (!code) return;
+
+    const { success, result } = await window.chatAPI.runPythonCode(code);
+
+    // Append a new message to the chat
+    const newMessage = {
+      id: crypto.randomUUID(),
+      role: 'assistant',
+      content: `\`\`\`${success ? 'python-output' : 'error'}\n${result.trim()}\n\`\`\``,
+      timestamp: Date.now()
+    };
+
+    setMessages((prev) => [...prev, newMessage]);
+  }
+
   const {
     handleDocumentUpload,
     handleSummarizeDoc,
@@ -256,12 +279,19 @@ function App() {
       .replace(/<\/script>/gi, '&lt;/script&gt;');
   }
  
-  function renderWithThinking(text, sources = []) {
+  function renderWithThinking(text, sources = [], onRunCode) {
+    console.log('🔄 renderWithThinking called with text:', text, 'sources:', sources);
     const parts = text.split(/(<think>[\s\S]*?<\/think>)/g);
+
+    const shouldShowRunButton =
+      typeof onRunCode === 'function' &&
+      text.includes('```python')  &&
+      !text.includes('```python-output'); 
+
+      console.log('🔄 shouldShowRunButton:', shouldShowRunButton);
 
     return (
       <>
-        {/* 🔍 Main Assistant Response Rendering */}
         {parts.map((part, index) => {
           const trimmed = part.trim();
 
@@ -285,14 +315,58 @@ function App() {
 
           return (
             <div key={`text-${index}`} className="prose dark:prose-invert max-w-none mb-2">
-              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeRaw]}
+                components={{
+                  pre({ children, ...props }) {
+                    const child = children[0];
+                    const className = child?.props?.className || '';
+                    const lang = className.replace('language-', '');
+
+                    if (lang === 'python-output') {
+                      return (
+                        <pre className="bg-gray-900 text-green-300 p-3 rounded-md text-sm overflow-x-auto mt-2" {...props}>
+                          {children}
+                        </pre>
+                      );
+                    }
+
+                    return (
+                      <pre className="bg-zinc-800 text-white p-3 rounded-md text-sm overflow-x-auto mt-2" {...props}>
+                        {children}
+                      </pre>
+                    );
+                  },
+                  code({ inline, className = '', children, ...props }) {
+                    if (inline) {
+                      return (
+                        <code className="bg-gray-200 dark:bg-gray-700 text-sm px-1 py-0.5 rounded" {...props}>
+                          {children}
+                        </code>
+                      );
+                    }
+                    return <code className={className} {...props}>{children}</code>;
+                  },
+                }}
+              >
                 {part}
               </ReactMarkdown>
             </div>
           );
         })}
 
-        {/* 📄 Enhanced Sources Section */}
+        {/* Run Code button at the bottom */}
+        {shouldShowRunButton && (
+          <button
+            className="mt-2 px-3 py-1 text-sm bg-green-600 hover:bg-green-700 text-white rounded transition"
+            onClick={onRunCode}
+          >
+            ▶ Run Code
+          </button>
+        )}
+
+        {/* 📄 Sources section */}
         {sources.length > 0 && (
           <details className="mt-3 p-3 rounded-md border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800/40 shadow-sm">
             <summary className="cursor-pointer font-semibold text-sm text-gray-900 dark:text-gray-100">
@@ -317,6 +391,7 @@ function App() {
       </>
     );
   };
+
 
   const handleCancelDownload = () => {
     window.chatAPI.cancelDownload?.();
@@ -387,7 +462,7 @@ function App() {
                     </div>
                     <div className="prose dark:prose-invert max-w-none">
                       {m.role === 'assistant'
-                        ? renderWithThinking(m.content, m.sources)
+                        ? renderWithThinking(m.content, m.sources, () => runPython(m.content))
                         : (
                           <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                             {m.content}
