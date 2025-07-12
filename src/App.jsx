@@ -7,6 +7,7 @@ import ModelSelector from './pages/ModelSelector';
 import ChatHeader from './ui-elements/ChatHeader';
 import ChatFooter from './ui-elements/ChatFooter';
 import DownloadProgressModal from './ui-elements/DownloadProgressModal';
+import MediaDisplay from './components/MediaDisplay';
 import { useChatManager } from './hooks/useChatManager'; 
 import { useDocumentManager } from './hooks/useDocumentManager';
 import { MessageSquarePlus } from 'lucide-react';
@@ -235,6 +236,7 @@ function App() {
     handleSummarizeDoc,
     sendRAGQuestion,
     searchDocuments,
+    handleMediaUpload, // Add new function
   } = useDocumentManager({
     chatId,
     messages,
@@ -279,7 +281,7 @@ function App() {
       .replace(/<\/script>/gi, '&lt;/script&gt;');
   }
  
-  function renderWithThinking(text, sources = [], onRunCode) {
+  function renderWithThinking(text, sources = [], onRunCode, mediaFile = null) {
     console.log('🔄 renderWithThinking called with text:', text, 'sources:', sources);
     const parts = text.split(/(<think>[\s\S]*?<\/think>)/g);
 
@@ -292,6 +294,13 @@ function App() {
 
     return (
       <>
+        {/* Render media if present */}
+        {mediaFile && (
+          <div className="mb-3">
+            <MediaDisplay mediaFile={mediaFile} chatId={chatId} />
+          </div>
+        )}
+
         {parts.map((part, index) => {
           const trimmed = part.trim();
 
@@ -462,11 +471,20 @@ function App() {
                     </div>
                     <div className="prose dark:prose-invert max-w-none">
                       {m.role === 'assistant'
-                        ? renderWithThinking(m.content, m.sources, () => runPython(m.content))
+                        ? renderWithThinking(m.content, m.sources, () => runPython(m.content), m.mediaFile)
                         : (
-                          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-                            {m.content}
-                          </ReactMarkdown>
+                          <>
+                            {/* Render media if present */}
+                            {m.mediaFile && (
+                              <div className="mb-3">
+                                <MediaDisplay mediaFile={m.mediaFile} chatId={chatId} />
+                              </div>
+                            )}
+                            {/* Render text content */}
+                            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                              {m.content}
+                            </ReactMarkdown>
+                          </>
                         )
                       }
                     </div>
@@ -508,6 +526,7 @@ function App() {
               loading={loading}
               docUploaded={docUploaded}
               setDocUploaded={setDocUploaded}
+              onMediaUpload={handleMediaUpload}
             />
           )}
         </div>

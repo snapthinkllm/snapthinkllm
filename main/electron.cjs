@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, protocol } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -15,6 +15,8 @@ function createWindow() {
     icon: path.join(__dirname, 'icons', 'snapthink-logo.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
+      nodeIntegration: false,
+      contextIsolation: true,
     },
   });
 
@@ -552,6 +554,76 @@ ipcMain.handle('run-python', async (event, code) => {
     });
   } catch (err) {
     return { success: false, result: `Internal error: ${err.message}` };
+  }
+});
+
+// -------------------- Media file handlers --------------------
+ipcMain.handle('save-media-file', async (event, { chatId, fileName, fileData, fileType }) => {
+  try {
+    const chatDir = path.join(chatsDir, chatId);
+    const mediaDir = path.join(chatDir, 'media');
+    
+    // Ensure media directory exists
+    fs.mkdirSync(mediaDir, { recursive: true });
+    
+    // Generate unique filename to avoid conflicts
+    const timestamp = Date.now();
+    const ext = path.extname(fileName);
+    const baseName = path.basename(fileName, ext);
+    const uniqueFileName = `${baseName}_${timestamp}${ext}`;
+    
+    const mediaPath = path.join(mediaDir, uniqueFileName);
+    
+    // Convert base64 data to buffer and save
+    const buffer = Buffer.from(fileData, 'base64');
+    fs.writeFileSync(mediaPath, buffer);
+    
+    console.log(`✅ Saved media file: ${uniqueFileName} (${fileType})`);
+    
+    return {
+      fileName: uniqueFileName,
+      originalName: fileName,
+      filePath: mediaPath,
+      fileType,
+      size: buffer.length
+    };
+  } catch (err) {
+    console.error('❌ Error saving media file:', err);
+    throw err;
+  }
+});
+
+ipcMain.handle('get-media-path', async (event, { chatId, fileName }) => {
+  try {
+    const mediaPath = path.join(chatsDir, chatId, 'media', fileName);
+    
+    if (fs.existsSync(mediaPath)) {
+      // Read the file and convert to base64 data URL
+      const fileBuffer = fs.readFileSync(mediaPath);
+      const ext = path.extname(fileName).toLowerCase();
+      
+      // Determine MIME type based on extension
+      let mimeType = 'application/octet-stream';
+      if (['.jpg', '.jpeg'].includes(ext)) mimeType = 'image/jpeg';
+      else if (ext === '.png') mimeType = 'image/png';
+      else if (ext === '.gif') mimeType = 'image/gif';
+      else if (ext === '.webp') mimeType = 'image/webp';
+      else if (ext === '.bmp') mimeType = 'image/bmp';
+      else if (ext === '.mp4') mimeType = 'video/mp4';
+      else if (ext === '.webm') mimeType = 'video/webm';
+      else if (ext === '.ogg') mimeType = 'video/ogg';
+      else if (ext === '.avi') mimeType = 'video/x-msvideo';
+      else if (ext === '.mov') mimeType = 'video/quicktime';
+      
+      // Convert to data URL
+      const base64Data = fileBuffer.toString('base64');
+      return `data:${mimeType};base64,${base64Data}`;
+    }
+    
+    return null;
+  } catch (err) {
+    console.error('❌ Error getting media path:', err);
+    return null;
   }
 });
 

@@ -5,6 +5,13 @@ import {
   embedMultiple,
   cosineSimilarity
 } from '../utils/embeddingUtils';
+import { 
+  isMediaFile, 
+  getMediaType, 
+  validateFileSize, 
+  fileToBase64, 
+  formatFileSize 
+} from '../utils/mediaUtils';
 import { v4 as uuidv4 } from 'uuid';
 
 /*
@@ -314,10 +321,70 @@ export function useDocumentManager({
 
 
 
+  const handleMediaUpload = async (file, mediaType) => {
+    if (!file || !chatId) return;
+
+    try {
+      // Validate file size (50MB limit)
+      if (!validateFileSize(file, 50)) {
+        setToast('❌ File too large. Maximum size is 50MB.');
+        return;
+      }
+
+      // Validate media type
+      if (!isMediaFile(file)) {
+        setToast('❌ Unsupported file type. Please upload images or videos.');
+        return;
+      }
+
+      setToast(`📤 Uploading ${mediaType}...`);
+
+      // Convert file to base64
+      const base64Data = await fileToBase64(file);
+
+      // Save media file via electron API
+      const result = await window.chatAPI.saveMediaFile({
+        chatId,
+        fileName: file.name,
+        fileData: base64Data,
+        fileType: mediaType
+      });
+
+      console.log('✅ Media file saved:', result);
+
+      // Create a media message
+      const mediaMessage = {
+        role: 'user',
+        content: `[${mediaType.toUpperCase()}] ${result.originalName}`,
+        timestamp: new Date().toISOString(),
+        mediaFile: {
+          fileName: result.fileName,
+          originalName: result.originalName,
+          fileType: mediaType,
+          size: result.size
+        }
+      };
+
+      // Add media message to chat
+      const updatedMessages = [...messages, mediaMessage];
+      setMessages(updatedMessages);
+      
+      // Save chat with new message
+      await window.chatAPI.saveChat({ id: chatId, messages: updatedMessages });
+
+      setToast(`✅ ${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)} uploaded successfully!`);
+      
+    } catch (err) {
+      console.error('❌ Media upload error:', err);
+      setToast('❌ Failed to upload media file. Please try again.');
+    }
+  };
+
   return {
     handleDocumentUpload,
     handleSummarizeDoc,
     sendRAGQuestion,
-    searchDocuments
+    searchDocuments,
+    handleMediaUpload
   };
 }

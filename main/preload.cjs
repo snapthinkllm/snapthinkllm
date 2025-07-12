@@ -46,4 +46,11 @@ contextBridge.exposeInMainWorld('chatAPI', {
 
   runPythonCode: (code) => ipcRenderer.invoke('run-python', code),
 
+  // Media file handling
+  saveMediaFile: ({ chatId, fileName, fileData, fileType }) => 
+    ipcRenderer.invoke('save-media-file', { chatId, fileName, fileData, fileType }),
+  
+  getMediaPath: ({ chatId, fileName }) => 
+    ipcRenderer.invoke('get-media-path', { chatId, fileName }),
+
 });

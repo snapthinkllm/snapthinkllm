@@ -2,8 +2,11 @@ import {
   FileText,
   StickyNote,
   SendHorizonal,
+  Image,
+  Video,
+  Paperclip,
 } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export default function ChatFooter({
   chatId,
@@ -18,19 +21,54 @@ export default function ChatFooter({
   loading,
   docUploaded,
   setDocUploaded,
+  onMediaUpload, // New prop for media uploads
 }) {
+  const [uploadMenuOpen, setUploadMenuOpen] = useState(false);
+
   const onDocumentUpload = async (e) => {
     await handleDocumentUpload(e);
     setDocUploaded(true);
+    setUploadMenuOpen(false);
+  };
+
+  const onImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (file && onMediaUpload) {
+      await onMediaUpload(file, 'image');
+      setUploadMenuOpen(false);
+    }
+  };
+
+  const onVideoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (file && onMediaUpload) {
+      await onMediaUpload(file, 'video');
+      setUploadMenuOpen(false);
+    }
   };
 
   const inputRef = useRef(null);
+  const uploadMenuRef = useRef(null);
 
   useEffect(() => {
     if (chatId && !loading) {
       inputRef.current.focus();
     }
   }, [chatId, loading]);
+
+  // Close upload menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (uploadMenuRef.current && !uploadMenuRef.current.contains(event.target)) {
+        setUploadMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
 
   const handleSend = () => {
@@ -73,24 +111,60 @@ export default function ChatFooter({
             <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-xs sm:text-sm">
             {/* Left side: Upload + Summarize */}
             <div className="flex items-center gap-2">
-                {/* Upload */}
-                <label
-                htmlFor="document-upload"
-                className={`inline-flex items-center gap-1 px-2 py-1.5 text-sm font-semibold rounded-lg shadow-sm transition-colors
-                  ${chatId
-                    ? 'bg-blue-400 text-zinc-100 hover:bg-zinc-200 dark:bg-blue-800 dark:text-white dark:hover:bg-zinc-800 cursor-pointer'
-                    : 'bg-zinc-100 text-zinc-500 cursor-not-allowed'}`}
-                >
-                Upload
-                </label>
-                <input
-                type="file"
-                id="document-upload"
-                accept=".pdf,.txt,.md"
-                onChange={onDocumentUpload}
-                className="hidden"
-                disabled={!chatId}
-                />
+                {/* Upload dropdown */}
+                <div className="relative" ref={uploadMenuRef}>
+                  <button
+                    onClick={() => setUploadMenuOpen(!uploadMenuOpen)}
+                    disabled={!chatId}
+                    className={`inline-flex items-center gap-1 px-2 py-1.5 text-sm font-semibold rounded-lg shadow-sm transition-colors
+                      ${chatId
+                        ? 'bg-blue-400 text-zinc-100 hover:bg-zinc-200 dark:bg-blue-800 dark:text-white dark:hover:bg-zinc-800 cursor-pointer'
+                        : 'bg-zinc-100 text-zinc-500 cursor-not-allowed'}`}
+                  >
+                    <Paperclip className="w-4 h-4" />
+                    Upload
+                  </button>
+
+                  {uploadMenuOpen && chatId && (
+                    <div className="absolute bottom-full mb-2 left-0 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg min-w-[150px] z-10">
+                      {/* Document Upload */}
+                      <label className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer rounded-t-lg">
+                        <FileText className="w-4 h-4" />
+                        <span className="text-sm">Document</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.txt,.md"
+                          onChange={onDocumentUpload}
+                          className="hidden"
+                        />
+                      </label>
+                      
+                      {/* Image Upload */}
+                      <label className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">
+                        <Image className="w-4 h-4" />
+                        <span className="text-sm">Image</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={onImageUpload}
+                          className="hidden"
+                        />
+                      </label>
+                      
+                      {/* Video Upload */}
+                      <label className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer rounded-b-lg">
+                        <Video className="w-4 h-4" />
+                        <span className="text-sm">Video</span>
+                        <input
+                          type="file"
+                          accept="video/*"
+                          onChange={onVideoUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  )}
+                </div>
 
                 {/* Summarize */}
                 <button
