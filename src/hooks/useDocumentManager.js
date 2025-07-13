@@ -30,7 +30,7 @@ handleSummarizeDoc
 This takes care of the full document pipeline (parse → embed → persist → summarize → QA).
 */
 export function useDocumentManager({
-  chatId,
+  notebookId, // Changed from chatId to notebookId
   messages,
   setMessages,
   setToast,
@@ -45,20 +45,26 @@ export function useDocumentManager({
   setRagMode,
   setSessionDocs,
   modelSelected,
-  setModelSelected
+  setModelSelected,
+  refreshFiles, // Add refreshFiles callback
 }) {
   const handleDocumentUpload = async (e) => {
     const file = e.target.files[0];
-    if (!file || !chatId) return;
+    if (!file || !notebookId) return;
 
     try {
       const parsedText = await parseUploadedFile(file);
       showParsedPreview(parsedText, file.name);
 
-      const doc = await embedAndPersistDocument(file, chatId, parsedText);
+      const doc = await embedAndPersistDocument(file, notebookId, parsedText);
 
       updateRagState(doc);
       await saveAutoSummaryPrompt(doc);
+
+      // Refresh files in sidebar
+      if (refreshFiles) {
+        await refreshFiles();
+      }
 
       setToast(`✅ Document uploaded and persisted. RAG ready.`);
     } catch (err) {
@@ -93,17 +99,23 @@ export function useDocumentManager({
   };
 
   const updateRagState = (doc) => {
-    setRagData((prev) =>
-      new Map(prev).set(chatId, {
-        docs: [
-          {
-            fileName: doc.name,
-            chunks: doc.chunks,
-            embeddings: doc.embeddings,
-          },
-        ],
-      })
-    );
+    setRagData((prev) => {
+      const newMap = new Map(prev);
+      const existingData = newMap.get(notebookId) || { docs: [] };
+      
+      // Add new document to existing docs
+      const updatedDocs = [...existingData.docs, {
+        fileName: doc.name,
+        chunks: doc.chunks,
+        embeddings: doc.embeddings,
+      }];
+      
+      newMap.set(notebookId, {
+        docs: updatedDocs
+      });
+      
+      return newMap;
+    });
 
     setDocUploaded(true);
     setRagMode?.(true);
@@ -128,11 +140,11 @@ export function useDocumentManager({
 
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
-    await window.chatAPI.saveChat({ id: chatId, messages: newMessages });
+    await window.notebookAPI.saveNotebook(notebookId, { messages: newMessages });
   };
 
   const handleSummarizeDoc = () => {
-    const data = ragData.get(chatId);
+    const data = ragData.get(notebookId);
     if (!data) {
       setToast('❌ No document found for summarization. Please upload a document first.');
       return;
@@ -150,34 +162,47 @@ export function useDocumentManager({
     return await embedMultiple(chunks);
   };
 
-  const embedAndPersistDocument = async (file, chatId, parsedText) => {
+  const embedAndPersistDocument = async (file, notebookId, parsedText) => {
     const docId = uuidv4();
     const ext = file.name.split('.').pop();
     const chunks = chunkText(parsedText, 300, 50);
     const embeddings = await embedChunksLocally(chunks);
 
-    const buffer = await file.arrayBuffer();
-    await window.chatAPI.persistDoc({
-      chatId,
-      docId,
-      fileName: file.name,
+    // Create document metadata
+    const docMetadata = {
+      id: docId,
+      name: file.name,
       ext,
-      fileBuffer: Array.from(new Uint8Array(buffer)),
+      size: file.size,
+      uploadedAt: new Date().toISOString(),
       chunks,
       embeddings,
-    });
+    };
 
-    const existingMeta = await window.chatAPI.loadDocMetadata?.(chatId);
-    const docsMetadata = Array.isArray(existingMeta) ? existingMeta : [];
-    docsMetadata.push({ id: docId, name: file.name, ext });
+    // Convert file to buffer for storage
+    const buffer = await file.arrayBuffer();
+    const fileBlob = new Blob([buffer], { type: file.type });
+    
+    // Create a temporary file path for the notebook API
+    const tempFile = {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      buffer: Array.from(new Uint8Array(buffer)),
+      metadata: docMetadata
+    };
 
-    await window.chatAPI.updateChatDocs({ chatId, docs: docsMetadata });
-    await window.chatAPI.persistDocMetadata({ chatId, docsMetadata });
+    // Add file to notebook using the notebook API
+    await window.notebookAPI.addFile(notebookId, tempFile, 'docs');
+
+    console.log('✅ Document persisted to notebook:', docMetadata);
 
     return {
       id: docId,
       name: file.name,
-      filePath: `chats/${chatId}/docs/${docId}/file.${ext}`,
+      ext,
+      size: file.size,
+      uploadedAt: docMetadata.uploadedAt,
       chunks,
       embeddings,
     };
@@ -188,7 +213,7 @@ export function useDocumentManager({
     await ensureEmbeddingModel(setDownloading, setStatus, setProgress, setDetail);
 
     console.log('🔄 Sending RAG question:', question);
-    const data = ragData.get(chatId);
+    const data = ragData.get(notebookId);
     console.log('🔄 RAG data:', data);
 
     if (!question.trim()) return;
@@ -199,7 +224,7 @@ export function useDocumentManager({
     );
 
     if (!embeddedDocs || embeddedDocs.length === 0) {
-      toast.warning("No embedded chunks found. Please upload and embed at least one document.");
+      setToast("❌ No embedded chunks found. Please upload and embed at least one document.");
       return;
     }
 
@@ -286,7 +311,7 @@ export function useDocumentManager({
     setDownloading(null);
     setStatus(null);
     setProgress(null);
-    setModelSelected(modelSelected)
+    setModelSelected(modelSelected);
 
   };
 
@@ -298,7 +323,7 @@ export function useDocumentManager({
     await ensureEmbeddingModel(setDownloading, setStatus, setProgress, setDetail);
     const queryEmbedding = await getEmbedding(query);
 
-    const rag = ragData.get(chatId);
+    const rag = ragData.get(notebookId);
     console.log('🔄 RAG data:', rag, rag.docs);
     if (!rag?.docs?.length) return [];
     console.log(`📄 Found ${rag.docs.length} documents in RAG data.`);
@@ -322,7 +347,7 @@ export function useDocumentManager({
 
 
   const handleMediaUpload = async (file, mediaType) => {
-    if (!file || !chatId) return;
+    if (!file || !notebookId) return;
 
     try {
       // Validate file size (50MB limit)
@@ -342,26 +367,30 @@ export function useDocumentManager({
       // Convert file to base64
       const base64Data = await fileToBase64(file);
 
-      // Save media file via electron API
-      const result = await window.chatAPI.saveMediaFile({
-        chatId,
-        fileName: file.name,
-        fileData: base64Data,
-        fileType: mediaType
-      });
+      // Create file object for notebook API
+      const fileData = {
+        name: file.name,
+        size: file.size,
+        type: mediaType,
+        data: base64Data,
+        uploadedAt: new Date().toISOString()
+      };
 
-      console.log('✅ Media file saved:', result);
+      // Add media file to notebook
+      await window.notebookAPI.addFile(notebookId, fileData, mediaType === 'image' ? 'images' : 'videos');
+
+      console.log('✅ Media file saved to notebook');
 
       // Create a media message
       const mediaMessage = {
         role: 'user',
-        content: `[${mediaType.toUpperCase()}] ${result.originalName}`,
+        content: `[${mediaType.toUpperCase()}] ${file.name}`,
         timestamp: new Date().toISOString(),
         mediaFile: {
-          fileName: result.fileName,
-          originalName: result.originalName,
+          fileName: file.name,
+          originalName: file.name,
           fileType: mediaType,
-          size: result.size
+          size: file.size
         }
       };
 
@@ -369,8 +398,8 @@ export function useDocumentManager({
       const updatedMessages = [...messages, mediaMessage];
       setMessages(updatedMessages);
       
-      // Save chat with new message
-      await window.chatAPI.saveChat({ id: chatId, messages: updatedMessages });
+      // Save notebook with new message
+      await window.notebookAPI.saveNotebook(notebookId, { messages: updatedMessages });
 
       setToast(`✅ ${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)} uploaded successfully!`);
       
