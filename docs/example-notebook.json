@@ -1,0 +1,77 @@
+{
+  "id": "notebook-1673456789012-abc123def",
+  "title": "Sales Data Analysis Q4 2024",
+  "description": "Comprehensive analysis of Q4 2024 sales performance including regional breakdowns, product categories, and forecasting for Q1 2025.",
+  "createdAt": "2024-01-12T14:30:00.000Z",
+  "updatedAt": "2024-01-15T16:45:30.000Z",
+  "thumbnail": "images/sales-chart-preview.png",
+  "tags": ["data-science", "sales", "analysis", "quarterly-report", "forecasting"],
+  "model": "llama3.1:8b",
+  "plugins": {
+    "enabled": ["python-runner", "document-rag", "chart-generator"],
+    "settings": {
+      "python-runner": {
+        "environment": "default",
+        "packages": ["pandas", "matplotlib", "numpy", "seaborn", "scikit-learn"],
+        "autoInstall": true
+      },
+      "document-rag": {
+        "chunkSize": 1000,
+        "overlap": 200,
+        "similarityThreshold": 0.7,
+        "maxSources": 5
+      },
+      "chart-generator": {
+        "defaultFormat": "png",
+        "resolution": "300dpi",
+        "colorScheme": "corporate"
+      }
+    }
+  },
+  "stats": {
+    "totalMessages": 42,
+    "totalTokens": 28750,
+    "totalFiles": 7,
+    "lastActive": "2024-01-15T16:45:30.000Z",
+    "avgTokensPerMessage": 684,
+    "executionTime": {
+      "total": 1250000,
+      "average": 29761
+    }
+  },
+  "settings": {
+    "autoSave": true,
+    "autoExecute": false,
+    "maxChatHistory": 100,
+    "enableThinking": true,
+    "customPrompts": {
+      "dataAnalysis": "You are a data analyst expert. When analyzing data, always provide:\n1. Summary statistics\n2. Key insights\n3. Visualizations\n4. Actionable recommendations",
+      "codeReview": "Review this code for efficiency, readability, and best practices."
+    }
+  },
+  "collaboration": {
+    "sharedWith": [],
+    "permissions": {
+      "owner": "read-write-admin",
+      "collaborators": "read-write",
+      "viewers": "read-only"
+    },
+    "comments": [],
+    "changeLog": [
+      {
+        "timestamp": "2024-01-15T16:45:30.000Z",
+        "action": "message_added",
+        "user": "owner",
+        "details": "Added forecasting analysis for Q1 2025"
+      },
+      {
+        "timestamp": "2024-01-15T14:20:15.000Z",
+        "action": "file_uploaded",
+        "user": "owner",
+        "details": "Uploaded regional_sales_Q4.csv"
+      }
+    ]
+  },
+  "version": "1.0.0",
+  "schemaVersion": "1.0"
+}
