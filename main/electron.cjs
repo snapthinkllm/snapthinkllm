@@ -531,6 +531,7 @@ ipcMain.on('update-chat-docs', (e, { chatId, docs }) => {
 
 ipcMain.handle('run-python', async (event, code) => {
   const tempFile = path.join(os.tmpdir(), `snapthink_${Date.now()}.py`);
+  console.log(`🔄 Running Python code in temporary file: ${tempFile}`);
 
   try {
     fs.writeFileSync(tempFile, code, 'utf-8');
@@ -627,6 +628,516 @@ ipcMain.handle('get-media-path', async (event, { chatId, fileName }) => {
   }
 });
 
+// -------------------- Notebook directory setup --------------------
+const notebooksDir = path.join(app.getPath('userData'), 'notebooks');
+const notebookManifestFile = path.join(notebooksDir, 'notebooks.json');
+
+if (!fs.existsSync(notebooksDir)) fs.mkdirSync(notebooksDir);
+
+function loadNotebookManifest() {
+  try {
+    if (fs.existsSync(notebookManifestFile)) {
+      return JSON.parse(fs.readFileSync(notebookManifestFile));
+    }
+  } catch (e) {
+    console.error('Failed to read notebook manifest:', e);
+  }
+  return {};
+}
+
+function saveNotebookManifest(data) {
+  try {
+    fs.writeFileSync(notebookManifestFile, JSON.stringify(data, null, 2));
+  } catch (e) {
+    console.error('Failed to write notebook manifest:', e);
+  }
+}
+
+// -------------------- IPC Notebook handlers --------------------
+
+// List all notebooks
+ipcMain.handle('list-notebooks', () => {
+  try {
+    console.log('📂 Listing notebooks from:', notebooksDir);
+    
+    if (!fs.existsSync(notebooksDir)) {
+      fs.mkdirSync(notebooksDir, { recursive: true });
+      return [];
+    }
+
+    const notebookIds = fs.readdirSync(notebooksDir).filter(f => {
+      const stat = fs.statSync(path.join(notebooksDir, f));
+      return stat.isDirectory();
+    });
+
+    const notebooks = notebookIds.map((id) => {
+      const notebookPath = path.join(notebooksDir, id, 'notebook.json');
+      
+      if (fs.existsSync(notebookPath)) {
+        try {
+          const metadata = JSON.parse(fs.readFileSync(notebookPath, 'utf-8'));
+          
+          // Calculate stats
+          const messagesPath = path.join(notebooksDir, id, 'messages.json');
+          let totalMessages = 0;
+          if (fs.existsSync(messagesPath)) {
+            const messagesData = JSON.parse(fs.readFileSync(messagesPath, 'utf-8'));
+            totalMessages = messagesData.messages?.length || 0;
+          }
+          
+          // Count files
+          const docsDir = path.join(notebooksDir, id, 'docs');
+          const totalFiles = fs.existsSync(docsDir) ? fs.readdirSync(docsDir).length : 0;
+          
+          return {
+            ...metadata,
+            stats: {
+              ...metadata.stats,
+              totalMessages,
+              totalFiles,
+              lastActive: metadata.updatedAt || metadata.createdAt
+            }
+          };
+        } catch (error) {
+          console.error(`❌ Error reading notebook ${id}:`, error);
+          return null;
+        }
+      }
+      return null;
+    }).filter(Boolean);
+
+    console.log(`✅ Found ${notebooks.length} notebooks`);
+    return notebooks.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  } catch (error) {
+    console.error('❌ Error listing notebooks:', error);
+    return [];
+  }
+});
+
+// Create new notebook
+ipcMain.handle('create-notebook', (event, { title, description = '' }) => {
+  try {
+    const timestamp = Date.now();
+    const id = `notebook-${timestamp}-${Math.random().toString(36).substr(2, 9)}`;
+    const notebookDir = path.join(notebooksDir, id);
+    
+    // Create notebook directory structure
+    fs.mkdirSync(notebookDir, { recursive: true });
+    fs.mkdirSync(path.join(notebookDir, 'docs'), { recursive: true });
+    fs.mkdirSync(path.join(notebookDir, 'images'), { recursive: true });
+    fs.mkdirSync(path.join(notebookDir, 'videos'), { recursive: true });
+    fs.mkdirSync(path.join(notebookDir, 'outputs'), { recursive: true });
+    
+    const now = new Date().toISOString();
+    
+    // Create notebook metadata
+    const metadata = {
+      id,
+      title: title || 'New Notebook',
+      description,
+      createdAt: now,
+      updatedAt: now,
+      thumbnail: null,
+      tags: [],
+      model: null,
+      plugins: {
+        enabled: [],
+        settings: {}
+      },
+      stats: {
+        totalMessages: 0,
+        totalTokens: 0,
+        totalFiles: 0,
+        lastActive: now
+      }
+    };
+    
+    // Save metadata
+    fs.writeFileSync(
+      path.join(notebookDir, 'notebook.json'),
+      JSON.stringify(metadata, null, 2)
+    );
+    
+    // Create empty messages file
+    fs.writeFileSync(
+      path.join(notebookDir, 'messages.json'),
+      JSON.stringify({ messages: [] }, null, 2)
+    );
+    
+    console.log(`✅ Created notebook: ${id}`);
+    return metadata;
+  } catch (error) {
+    console.error('❌ Error creating notebook:', error);
+    throw error;
+  }
+});
+
+// Load notebook
+ipcMain.handle('load-notebook', (event, notebookId) => {
+  try {
+    console.log(`🔄 Loading notebook: ${notebookId}`);
+    const notebookDir = path.join(notebooksDir, notebookId);
+    
+    if (!fs.existsSync(notebookDir)) {
+      throw new Error(`Notebook ${notebookId} not found`);
+    }
+    
+    // Load metadata
+    const metadataPath = path.join(notebookDir, 'notebook.json');
+    const metadata = fs.existsSync(metadataPath) 
+      ? JSON.parse(fs.readFileSync(metadataPath, 'utf-8'))
+      : {};
+    
+    // Load messages
+    const messagesPath = path.join(notebookDir, 'messages.json');
+    const messagesData = fs.existsSync(messagesPath)
+      ? JSON.parse(fs.readFileSync(messagesPath, 'utf-8'))
+      : { messages: [] };
+    
+    // Load file lists
+    const files = {
+      docs: loadFileList(path.join(notebookDir, 'docs')),
+      images: loadFileList(path.join(notebookDir, 'images')),
+      videos: loadFileList(path.join(notebookDir, 'videos')),
+      outputs: loadFileList(path.join(notebookDir, 'outputs'))
+    };
+    
+    console.log(`✅ Loaded notebook: ${notebookId} with ${messagesData.messages.length} messages`);
+    
+    return {
+      metadata,
+      messages: messagesData.messages,
+      files
+    };
+  } catch (error) {
+    console.error(`❌ Error loading notebook ${notebookId}:`, error);
+    throw error;
+  }
+});
+
+// Save notebook messages
+ipcMain.handle('save-notebook', (event, notebookId, data) => {
+  try {
+    const notebookDir = path.join(notebooksDir, notebookId);
+    
+    if (!fs.existsSync(notebookDir)) {
+      throw new Error(`Notebook ${notebookId} not found`);
+    }
+    
+    // Save messages if provided
+    if (data.messages) {
+      const messagesPath = path.join(notebookDir, 'messages.json');
+      fs.writeFileSync(messagesPath, JSON.stringify({ messages: data.messages }, null, 2));
+    }
+    
+    // Update notebook metadata timestamp
+    const metadataPath = path.join(notebookDir, 'notebook.json');
+    if (fs.existsSync(metadataPath)) {
+      const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
+      metadata.updatedAt = new Date().toISOString();
+      metadata.stats.totalMessages = data.messages?.length || metadata.stats.totalMessages || 0;
+      fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+    }
+    
+    console.log(`✅ Saved notebook: ${notebookId}`);
+    return { success: true };
+  } catch (error) {
+    console.error(`❌ Error saving notebook ${notebookId}:`, error);
+    throw error;
+  }
+});
+
+// Update notebook metadata
+ipcMain.handle('update-notebook', (event, notebookId, updates) => {
+  try {
+    const notebookDir = path.join(notebooksDir, notebookId);
+    const metadataPath = path.join(notebookDir, 'notebook.json');
+    
+    if (!fs.existsSync(metadataPath)) {
+      throw new Error(`Notebook ${notebookId} not found`);
+    }
+    
+    const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
+    const updatedMetadata = {
+      ...metadata,
+      ...updates,
+      updatedAt: new Date().toISOString()
+    };
+    
+    fs.writeFileSync(metadataPath, JSON.stringify(updatedMetadata, null, 2));
+    
+    console.log(`✅ Updated notebook metadata: ${notebookId}`);
+    return updatedMetadata;
+  } catch (error) {
+    console.error(`❌ Error updating notebook ${notebookId}:`, error);
+    throw error;
+  }
+});
+
+// Delete notebook
+ipcMain.handle('delete-notebook', (event, notebookId) => {
+  try {
+    const notebookDir = path.join(notebooksDir, notebookId);
+    
+    if (fs.existsSync(notebookDir)) {
+      fs.rmSync(notebookDir, { recursive: true, force: true });
+      console.log(`✅ Deleted notebook: ${notebookId}`);
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error(`❌ Error deleting notebook ${notebookId}:`, error);
+    throw error;
+  }
+});
+
+// Export notebook as .snap file
+ipcMain.handle('export-notebook', async (event, notebookId) => {
+  try {
+    const { dialog } = require('electron');
+    const AdmZip = require('adm-zip');
+    
+    const notebookDir = path.join(notebooksDir, notebookId);
+    
+    if (!fs.existsSync(notebookDir)) {
+      throw new Error(`Notebook ${notebookId} not found`);
+    }
+    
+    // Get notebook metadata for default filename
+    const metadataPath = path.join(notebookDir, 'notebook.json');
+    const metadata = fs.existsSync(metadataPath) 
+      ? JSON.parse(fs.readFileSync(metadataPath, 'utf-8'))
+      : { title: 'notebook' };
+    
+    const defaultFileName = `${metadata.title.replace(/[^a-zA-Z0-9]/g, '_')}.snap`;
+    
+    const result = await dialog.showSaveDialog({
+      title: 'Export Notebook',
+      defaultPath: defaultFileName,
+      filters: [
+        { name: 'SnapThink Notebooks', extensions: ['snap'] }
+      ]
+    });
+    
+    if (result.canceled) {
+      return { success: false, canceled: true };
+    }
+    
+    // Create zip archive
+    const zip = new AdmZip();
+    
+    // Add all files from notebook directory
+    const addDirectoryToZip = (dirPath, zipPath = '') => {
+      const items = fs.readdirSync(dirPath);
+      
+      items.forEach(item => {
+        const itemPath = path.join(dirPath, item);
+        const itemZipPath = zipPath ? `${zipPath}/${item}` : item;
+        const stat = fs.statSync(itemPath);
+        
+        if (stat.isDirectory()) {
+          addDirectoryToZip(itemPath, itemZipPath);
+        } else {
+          zip.addLocalFile(itemPath, zipPath, item);
+        }
+      });
+    };
+    
+    addDirectoryToZip(notebookDir);
+    
+    // Write zip file
+    zip.writeZip(result.filePath);
+    
+    console.log(`✅ Exported notebook ${notebookId} to ${result.filePath}`);
+    return { success: true, filePath: result.filePath };
+  } catch (error) {
+    console.error(`❌ Error exporting notebook ${notebookId}:`, error);
+    throw error;
+  }
+});
+
+// Import notebook from .snap file
+ipcMain.handle('import-notebook', async (event) => {
+  try {
+    const { dialog } = require('electron');
+    const AdmZip = require('adm-zip');
+    
+    const result = await dialog.showOpenDialog({
+      title: 'Import Notebook',
+      filters: [
+        { name: 'SnapThink Notebooks', extensions: ['snap'] },
+        { name: 'All Files', extensions: ['*'] }
+      ],
+      properties: ['openFile']
+    });
+    
+    if (result.canceled || result.filePaths.length === 0) {
+      return { success: false, canceled: true };
+    }
+    
+    const filePath = result.filePaths[0];
+    
+    // Extract zip file
+    const zip = new AdmZip(filePath);
+    const entries = zip.getEntries();
+    
+    // Find notebook.json to get metadata
+    const notebookEntry = entries.find(entry => entry.entryName === 'notebook.json');
+    if (!notebookEntry) {
+      throw new Error('Invalid notebook file: notebook.json not found');
+    }
+    
+    const metadata = JSON.parse(notebookEntry.getData().toString());
+    
+    // Generate new ID to avoid conflicts
+    const timestamp = Date.now();
+    const newId = `notebook-${timestamp}-${Math.random().toString(36).substr(2, 9)}`;
+    const newNotebookDir = path.join(notebooksDir, newId);
+    
+    // Extract all files to new directory
+    zip.extractAllTo(newNotebookDir, true);
+    
+    // Update metadata with new ID and timestamp
+    const updatedMetadata = {
+      ...metadata,
+      id: newId,
+      updatedAt: new Date().toISOString(),
+      title: `${metadata.title} (Imported)`
+    };
+    
+    fs.writeFileSync(
+      path.join(newNotebookDir, 'notebook.json'),
+      JSON.stringify(updatedMetadata, null, 2)
+    );
+    
+    console.log(`✅ Imported notebook ${newId} from ${filePath}`);
+    return { success: true, notebook: updatedMetadata };
+  } catch (error) {
+    console.error('❌ Error importing notebook:', error);
+    throw error;
+  }
+});
+
+// Helper function to load file list from directory
+function loadFileList(dirPath) {
+  try {
+    if (!fs.existsSync(dirPath)) {
+      return [];
+    }
+    
+    return fs.readdirSync(dirPath)
+      .filter(fileName => !fileName.endsWith('.meta.json') && !fileName.endsWith('.info.json')) // Skip metadata files
+      .map(fileName => {
+        const filePath = path.join(dirPath, fileName);
+        const stat = fs.statSync(filePath);
+        
+        // Try to load metadata if it exists
+        const metadataPath = path.join(dirPath, `${fileName}.meta.json`);
+        const infoPath = path.join(dirPath, `${fileName}.info.json`);
+        
+        let metadata = null;
+        if (fs.existsSync(metadataPath)) {
+          try {
+            metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+          } catch (error) {
+            console.error(`Error loading metadata for ${fileName}:`, error);
+          }
+        } else if (fs.existsSync(infoPath)) {
+          try {
+            metadata = JSON.parse(fs.readFileSync(infoPath, 'utf8'));
+          } catch (error) {
+            console.error(`Error loading info for ${fileName}:`, error);
+          }
+        }
+        
+        return {
+          name: fileName,
+          size: stat.size,
+          uploadedAt: metadata?.uploadedAt || stat.birthtime.toISOString(),
+          path: filePath,
+          ...metadata // Spread any additional metadata
+        };
+      });
+  } catch (error) {
+    console.error(`Error loading file list from ${dirPath}:`, error);
+    return [];
+  }
+}
+
+// Add file to notebook
+ipcMain.handle('add-notebook-file', (event, notebookId, file, type = 'docs') => {
+  try {
+    const notebookDir = path.join(notebooksDir, notebookId);
+    const targetDir = path.join(notebookDir, type);
+    
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+    
+    // Handle different file input types
+    if (file.buffer) {
+      // File uploaded from browser with buffer data
+      const targetPath = path.join(targetDir, file.name);
+      const buffer = Buffer.from(file.buffer);
+      fs.writeFileSync(targetPath, buffer);
+      
+      // Save metadata if provided
+      if (file.metadata) {
+        const metadataPath = path.join(targetDir, `${file.name}.meta.json`);
+        fs.writeFileSync(metadataPath, JSON.stringify(file.metadata, null, 2));
+      }
+      
+      console.log(`✅ Added file ${file.name} to notebook ${notebookId} (${type}) with buffer`);
+    } else if (file.data) {
+      // Base64 data (for media files)
+      const targetPath = path.join(targetDir, file.name);
+      const buffer = Buffer.from(file.data, 'base64');
+      fs.writeFileSync(targetPath, buffer);
+      
+      // Save file info
+      const infoPath = path.join(targetDir, `${file.name}.info.json`);
+      fs.writeFileSync(infoPath, JSON.stringify({
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        uploadedAt: file.uploadedAt
+      }, null, 2));
+      
+      console.log(`✅ Added media file ${file.name} to notebook ${notebookId} (${type})`);
+    } else if (file.path) {
+      // Copy file from existing path
+      const targetPath = path.join(targetDir, file.name);
+      fs.copyFileSync(file.path, targetPath);
+      console.log(`✅ Copied file ${file.name} to notebook ${notebookId} (${type})`);
+    } else {
+      throw new Error('Invalid file data - missing buffer, data, or path');
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error(`❌ Error adding file to notebook ${notebookId}:`, error);
+    throw error;
+  }
+});
+
+// Remove file from notebook
+ipcMain.handle('remove-notebook-file', (event, notebookId, fileName, type = 'docs') => {
+  try {
+    const notebookDir = path.join(notebooksDir, notebookId);
+    const filePath = path.join(notebookDir, type, fileName);
+    
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      console.log(`✅ Removed file ${fileName} from notebook ${notebookId} (${type})`);
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error(`❌ Error removing file from notebook ${notebookId}:`, error);
+    throw error;
+  }
+});
+
 // -------------------- App Lifecycle --------------------
 app.whenReady().then(async () => {
   const installed = await isOllamaInstalled();
@@ -645,4 +1156,233 @@ app.whenReady().then(async () => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+// Migration from chats to notebooks
+ipcMain.handle('migrate-chats-to-notebooks', async () => {
+  try {
+    console.log('🔄 Starting migration from chats to notebooks...');
+    
+    const migratedNotebooks = [];
+    
+    // Check if chats directory exists
+    if (!fs.existsSync(chatsDir)) {
+      console.log('ℹ️ No chats directory found, skipping migration');
+      return { success: true, migrated: 0 };
+    }
+    
+    // Get all chat IDs
+    const chatIds = fs.readdirSync(chatsDir).filter(f => {
+      const stat = fs.statSync(path.join(chatsDir, f));
+      return stat.isDirectory();
+    });
+    
+    console.log(`📂 Found ${chatIds.length} chats to migrate`);
+    
+    // Load chat manifest for names
+    const manifest = loadManifest();
+    
+    for (const chatId of chatIds) {
+      try {
+        const chatDir = path.join(chatsDir, chatId);
+        const chatPath = path.join(chatDir, 'chat.json');
+        
+        if (!fs.existsSync(chatPath)) {
+          console.log(`⚠️ Skipping ${chatId}: no chat.json found`);
+          continue;
+        }
+        
+        // Load chat data
+        const chatData = JSON.parse(fs.readFileSync(chatPath, 'utf-8'));
+        const messages = chatData.messages || [];
+        const docs = chatData.docs || [];
+        
+        // Generate notebook ID and create directory
+        const timestamp = Date.now();
+        const notebookId = `notebook-${timestamp}-${Math.random().toString(36).substr(2, 9)}`;
+        const notebookDir = path.join(notebooksDir, notebookId);
+        
+        // Create notebook directory structure
+        fs.mkdirSync(notebookDir, { recursive: true });
+        fs.mkdirSync(path.join(notebookDir, 'docs'), { recursive: true });
+        fs.mkdirSync(path.join(notebookDir, 'images'), { recursive: true });
+        fs.mkdirSync(path.join(notebookDir, 'videos'), { recursive: true });
+        fs.mkdirSync(path.join(notebookDir, 'outputs'), { recursive: true });
+        
+        // Determine title from manifest or first message
+        let title = manifest[chatId] || 'Migrated Chat';
+        if (title === chatId && messages.length > 0) {
+          // Extract title from first user message
+          const firstUserMessage = messages.find(m => m.role === 'user');
+          if (firstUserMessage) {
+            title = firstUserMessage.content.slice(0, 50).replace(/\n/g, ' ').trim();
+            if (title.length === 50) title += '...';
+          }
+        }
+        
+        // Get creation date from first message or directory stats
+        let createdAt = new Date().toISOString();
+        if (messages.length > 0) {
+          const firstMessage = messages[0];
+          if (firstMessage.timestamp) {
+            createdAt = firstMessage.timestamp;
+          }
+        } else {
+          try {
+            const stat = fs.statSync(chatDir);
+            createdAt = stat.birthtime.toISOString();
+          } catch (e) {
+            // Use current time as fallback
+          }
+        }
+        
+        // Get last update time
+        let updatedAt = createdAt;
+        if (messages.length > 0) {
+          const lastMessage = messages[messages.length - 1];
+          if (lastMessage.timestamp) {
+            updatedAt = lastMessage.timestamp;
+          }
+        }
+        
+        // Create notebook metadata
+        const metadata = {
+          id: notebookId,
+          title,
+          description: `Migrated from chat session: ${chatId}`,
+          createdAt,
+          updatedAt,
+          thumbnail: null,
+          tags: ['migrated', 'legacy-chat'],
+          model: null, // Will be set when user selects a model
+          plugins: {
+            enabled: docs.length > 0 ? ['document-rag'] : [],
+            settings: {}
+          },
+          stats: {
+            totalMessages: messages.length,
+            totalTokens: 0, // Will be calculated later
+            totalFiles: docs.length,
+            lastActive: updatedAt
+          },
+          migration: {
+            originalChatId: chatId,
+            migratedAt: new Date().toISOString(),
+            version: '1.0'
+          }
+        };
+        
+        // Add IDs to messages if they don't have them
+        const migratedMessages = messages.map((msg, index) => ({
+          ...msg,
+          id: msg.id || `msg-${timestamp}-${index}`,
+          timestamp: msg.timestamp || createdAt
+        }));
+        
+        // Copy document files if they exist
+        const chatDocsDir = path.join(chatDir, 'docs');
+        if (fs.existsSync(chatDocsDir)) {
+          const docFiles = fs.readdirSync(chatDocsDir);
+          docFiles.forEach(fileName => {
+            const sourcePath = path.join(chatDocsDir, fileName);
+            const targetPath = path.join(notebookDir, 'docs', fileName);
+            fs.copyFileSync(sourcePath, targetPath);
+          });
+        }
+        
+        // Copy any media files
+        const chatMediaDir = path.join(chatDir, 'media');
+        if (fs.existsSync(chatMediaDir)) {
+          const mediaFiles = fs.readdirSync(chatMediaDir);
+          mediaFiles.forEach(fileName => {
+            const sourcePath = path.join(chatMediaDir, fileName);
+            const extension = path.extname(fileName).toLowerCase();
+            
+            let targetDir;
+            if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(extension)) {
+              targetDir = path.join(notebookDir, 'images');
+            } else if (['.mp4', '.avi', '.mov', '.webm'].includes(extension)) {
+              targetDir = path.join(notebookDir, 'videos');
+            } else {
+              targetDir = path.join(notebookDir, 'outputs');
+            }
+            
+            const targetPath = path.join(targetDir, fileName);
+            fs.copyFileSync(sourcePath, targetPath);
+          });
+        }
+        
+        // Save notebook metadata
+        fs.writeFileSync(
+          path.join(notebookDir, 'notebook.json'),
+          JSON.stringify(metadata, null, 2)
+        );
+        
+        // Save messages
+        fs.writeFileSync(
+          path.join(notebookDir, 'messages.json'),
+          JSON.stringify({ messages: migratedMessages }, null, 2)
+        );
+        
+        migratedNotebooks.push(metadata);
+        
+        console.log(`✅ Migrated chat ${chatId} -> notebook ${notebookId}: "${title}"`);
+        
+      } catch (error) {
+        console.error(`❌ Failed to migrate chat ${chatId}:`, error);
+      }
+    }
+    
+    console.log(`🎉 Migration completed! Migrated ${migratedNotebooks.length} chats to notebooks`);
+    
+    return { 
+      success: true, 
+      migrated: migratedNotebooks.length,
+      notebooks: migratedNotebooks 
+    };
+    
+  } catch (error) {
+    console.error('❌ Migration failed:', error);
+    throw error;
+  }
+});
+
+// Helper function to backup existing chats before migration
+ipcMain.handle('backup-chats', async () => {
+  try {
+    const { dialog } = require('electron');
+    const AdmZip = require('adm-zip');
+    
+    if (!fs.existsSync(chatsDir)) {
+      return { success: false, message: 'No chats directory found' };
+    }
+    
+    const result = await dialog.showSaveDialog({
+      title: 'Backup Chats',
+      defaultPath: `snapthink-chats-backup-${new Date().toISOString().split('T')[0]}.zip`,
+      filters: [
+        { name: 'ZIP Archives', extensions: ['zip'] }
+      ]
+    });
+    
+    if (result.canceled) {
+      return { success: false, canceled: true };
+    }
+    
+    // Create zip archive
+    const zip = new AdmZip();
+    
+    // Add entire chats directory
+    zip.addLocalFolder(chatsDir, 'chats');
+    
+    // Write zip file
+    zip.writeZip(result.filePath);
+    
+    console.log(`✅ Created chat backup: ${result.filePath}`);
+    return { success: true, filePath: result.filePath };
+    
+  } catch (error) {
+    console.error('❌ Error creating chat backup:', error);
+    throw error;
+  }
 });

@@ -54,3 +54,37 @@ contextBridge.exposeInMainWorld('chatAPI', {
     ipcRenderer.invoke('get-media-path', { chatId, fileName }),
 
 });
+
+contextBridge.exposeInMainWorld('notebookAPI', {
+  // List all notebooks
+  listNotebooks: () => ipcRenderer.invoke('list-notebooks'),
+  
+  // Create new notebook
+  createNotebook: (options) => ipcRenderer.invoke('create-notebook', options),
+  
+  // Load notebook by ID
+  loadNotebook: (notebookId) => ipcRenderer.invoke('load-notebook', notebookId),
+  
+  // Save notebook data
+  saveNotebook: (notebookId, data) => ipcRenderer.invoke('save-notebook', notebookId, data),
+  
+  // Update notebook metadata
+  updateNotebook: (notebookId, updates) => ipcRenderer.invoke('update-notebook', notebookId, updates),
+  
+  // Delete notebook
+  deleteNotebook: (notebookId) => ipcRenderer.invoke('delete-notebook', notebookId),
+  
+  // Export notebook as .snap file
+  exportNotebook: (notebookId) => ipcRenderer.invoke('export-notebook', notebookId),
+  
+  // Import notebook from .snap file
+  importNotebook: () => ipcRenderer.invoke('import-notebook'),
+  
+  // File management
+  addFile: (notebookId, file, type) => ipcRenderer.invoke('add-notebook-file', notebookId, file, type),
+  removeFile: (notebookId, fileName, type) => ipcRenderer.invoke('remove-notebook-file', notebookId, fileName, type),
+  
+  // Migration
+  migrateChatsToNotebooks: () => ipcRenderer.invoke('migrate-chats-to-notebooks'),
+  backupChats: () => ipcRenderer.invoke('backup-chats'),
+});
