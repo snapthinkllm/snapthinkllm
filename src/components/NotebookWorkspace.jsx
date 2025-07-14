@@ -261,7 +261,7 @@ function NotebookWorkspace({ notebookId, onBackToDashboard }) {
   }
 
   function renderWithThinking(text, sources = [], onRunCode, mediaFile = null) {
-    console.log('🔄 renderWithThinking called with text:', text, 'sources:', sources);
+    //console.log('🔄 renderWithThinking called with text:', text, 'sources:', sources);
     const parts = text.split(/(<think>[\s\S]*?<\/think>)/g);
 
     const shouldShowRunButton =

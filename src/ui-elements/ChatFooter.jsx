@@ -83,14 +83,14 @@ export default function ChatFooter({
   }
 
   return (
-    <footer className="p-4 bg-gray/1000 dark:bg-gray-800/80 backdrop-blur border-t border-gray-300 dark:border-gray-700">
+    <footer className="p-3 bg-gray/1000 dark:bg-gray-800/80 backdrop-blur border-t border-gray-300 dark:border-gray-700">
       
 
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-300 dark:border-gray-700 p-2 shadow-sm space-y-2">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-300 dark:border-gray-700 p-2 shadow-sm space-y-1.5">
             {/* Textarea */}
             <textarea
             ref={inputRef}
-            className="w-full p-2 text-sm bg-transparent text-black dark:text-white resize-none outline-none min-h-[48px] max-h-[120px] leading-snug
+            className="w-full p-2 text-sm bg-transparent text-black dark:text-white resize-none outline-none min-h-[40px] max-h-[100px] leading-snug
                 placeholder:font-semibold  placeholder:text-gray-500 dark:placeholder:text-gray-400"
             placeholder={ragMode ? 'Ask your document...' : 'Ask anything'}
             value={input}
@@ -108,7 +108,7 @@ export default function ChatFooter({
             />
 
             {/* Toolbar buttons */}
-            <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-xs sm:text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs sm:text-sm">
             {/* Left side: Upload + Summarize */}
             <div className="flex items-center gap-2">
                 {/* Upload dropdown */}
@@ -116,7 +116,7 @@ export default function ChatFooter({
                   <button
                     onClick={() => setUploadMenuOpen(!uploadMenuOpen)}
                     disabled={!chatId}
-                    className={`inline-flex items-center gap-1 px-2 py-1.5 text-sm font-semibold rounded-lg shadow-sm transition-colors
+                    className={`inline-flex items-center gap-1 px-2 py-1 text-sm font-semibold rounded-lg shadow-sm transition-colors
                       ${chatId
                         ? 'bg-blue-400 text-zinc-100 hover:bg-zinc-200 dark:bg-blue-800 dark:text-white dark:hover:bg-zinc-800 cursor-pointer'
                         : 'bg-zinc-100 text-zinc-500 cursor-not-allowed'}`}
@@ -170,7 +170,7 @@ export default function ChatFooter({
                 <button
                 onClick={handleSummarizeDoc}
                 disabled={!docUploaded || !chatId}
-                className={`inline-flex items-center gap-1 px-2 py-1.5 text-sm font-semibold rounded-lg shadow-sm transition-colors
+                className={`inline-flex items-center gap-1 px-2 py-1 text-sm font-semibold rounded-lg shadow-sm transition-colors
                   ${chatId
                     ? 'bg-blue-400 text-zinc-100 hover:bg-zinc-200 dark:bg-blue-900 dark:text-white dark:hover:bg-zinc-800 cursor-pointer'
                     : 'bg-zinc-100 text-zinc-700 cursor-not-allowed'}`}
@@ -180,7 +180,7 @@ export default function ChatFooter({
             </div>
 
             {/* Right side: Ask DOC toggle + Send */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
                 {/* RAG Toggle */}
                 <div className="flex items-center gap-2">
                 <span className={`font-semibold ${ragMode ? 'text-purple-600' : 'text-black-300'}`}>
@@ -206,7 +206,7 @@ export default function ChatFooter({
                 <button
                 onClick={handleSend}
                 disabled={!chatId || loading || !input.trim()}
-                className={`p-2.5 rounded-full shadow-md transition-all duration-200
+                className={`p-2 rounded-full shadow-md transition-all duration-200
                     ${chatId && !loading && input.trim()
                     ? 'bg-black hover:bg-black-700 text-white'
                     : 'bg-black-100 text-zinc-400 cursor-not-allowed'}
@@ -219,7 +219,7 @@ export default function ChatFooter({
             </div>
         </div>
 
-      <div className="text-center text-xs mt-2 text-gray-600 dark:text-gray-400 font-mono italic">
+      <div className="text-center text-xs mt-1.5 text-gray-600 dark:text-gray-400 font-mono italic">
          SnapThink LLM may occasionally be inaccurate or make mistakes.
       </div>
     </footer>
