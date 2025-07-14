@@ -10,12 +10,10 @@ import {
   Search,
   BookOpen,
   Clock,
-  Database,
   Edit3,
   Check,
   X
 } from 'lucide-react';
-import MigrationDialog from './MigrationDialog';
 
 function NotebookDashboard({ onNotebookSelect, onCreateNotebook }) {
   const [notebooks, setNotebooks] = useState([]);
@@ -23,7 +21,6 @@ function NotebookDashboard({ onNotebookSelect, onCreateNotebook }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('updatedAt'); // updatedAt, createdAt, title
   const [sortOrder, setSortOrder] = useState('desc'); // desc, asc
-  const [showMigration, setShowMigration] = useState(false);
   const [editingNotebook, setEditingNotebook] = useState(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
@@ -93,14 +90,6 @@ function NotebookDashboard({ onNotebookSelect, onCreateNotebook }) {
     } catch (error) {
       console.error('Failed to import notebook:', error);
     }
-  };
-
-  const handleMigrationComplete = (migrationResult) => {
-    // Refresh the notebooks list to show migrated notebooks
-    loadNotebooks();
-    
-    // You could also show a success toast here if you have a toast system
-    console.log('Migration completed:', migrationResult);
   };
 
   const handleStartEdit = (notebook, event) => {
@@ -225,14 +214,6 @@ function NotebookDashboard({ onNotebookSelect, onCreateNotebook }) {
           </div>
           
           <div className="flex items-center space-x-3">
-            <button
-              onClick={() => setShowMigration(true)}
-              className="flex items-center space-x-2 px-4 py-2 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900 dark:hover:bg-purple-800 text-purple-700 dark:text-purple-300 rounded-lg transition-colors"
-            >
-              <Database className="h-4 w-4" />
-              <span>Migrate Chats</span>
-            </button>
-            
             <button
               onClick={handleImportNotebook}
               className="flex items-center space-x-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors"
@@ -503,13 +484,6 @@ function NotebookDashboard({ onNotebookSelect, onCreateNotebook }) {
           </div>
         )}
       </div>
-
-      {/* Migration Dialog */}
-      <MigrationDialog 
-        isOpen={showMigration}
-        onClose={() => setShowMigration(false)}
-        onComplete={handleMigrationComplete}
-      />
     </div>
   );
 }

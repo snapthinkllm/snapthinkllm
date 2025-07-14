@@ -86,8 +86,4 @@ contextBridge.exposeInMainWorld('notebookAPI', {
   
   // Media handling
   getMediaPath: (notebookId, fileName, fileType) => ipcRenderer.invoke('get-notebook-media-path', { notebookId, fileName, fileType }),
-  
-  // Migration
-  migrateChatsToNotebooks: () => ipcRenderer.invoke('migrate-chats-to-notebooks'),
-  backupChats: () => ipcRenderer.invoke('backup-chats'),
 });
