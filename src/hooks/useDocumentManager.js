@@ -145,15 +145,41 @@ export function useDocumentManager({
 
   const handleSummarizeDoc = () => {
     const data = ragData.get(notebookId);
-    if (!data) {
-      setToast('❌ No document found for summarization. Please upload a document first.');
+    if (!data || !data.docs || data.docs.length === 0) {
+      setToast('❌ No documents found for summarization. Please upload a document first.');
       return;
     }
-    console.log('🔄 Summarizing document:', data);
 
-    const allText = data.chunks.join(' ');
-    const summarizePrompt = `📄 Summarize the uploaded document below.\n\n${allText}`;
+    console.log('🔄 Summarizing documents:', data);
 
+    // Combine all chunks from all documents
+    const allChunks = data.docs.flatMap(doc => doc.chunks || []);
+    if (allChunks.length === 0) {
+      setToast('❌ No document content found for summarization.');
+      return;
+    }
+
+    // Limit text length to prevent overwhelming the model
+    const maxChunks = 20; // Limit to first 20 chunks for better performance
+    const chunksToSummarize = allChunks.slice(0, maxChunks);
+    const allText = chunksToSummarize.join(' ');
+    
+    // Get document names for context
+    const documentNames = data.docs.map(doc => doc.fileName).join(', ');
+    
+    // Create a comprehensive summary prompt
+    const summarizePrompt = `📄 Please provide a comprehensive summary of the uploaded document(s): ${documentNames}.
+
+Structure your summary with:
+- **Main Topics**: Key themes and subjects covered
+- **Key Insights**: Important findings and takeaways  
+- **Key Points**: Essential information and details
+- **Conclusion**: Overall assessment and implications
+
+Document content:
+${allText}`;
+
+    setToast('🔄 Generating document summary...');
     sendRAGQuestion(summarizePrompt);
   };
 
@@ -414,11 +440,35 @@ export function useDocumentManager({
     }
   };
 
+  const getDocumentStats = () => {
+    const data = ragData.get(notebookId);
+    if (!data || !data.docs || data.docs.length === 0) {
+      return null;
+    }
+
+    const totalChunks = data.docs.reduce((sum, doc) => sum + (doc.chunks?.length || 0), 0);
+    const totalCharacters = data.docs.reduce((sum, doc) => 
+      sum + (doc.chunks?.join('').length || 0), 0
+    );
+    
+    return {
+      documentCount: data.docs.length,
+      totalChunks,
+      totalCharacters,
+      documents: data.docs.map(doc => ({
+        name: doc.fileName,
+        chunks: doc.chunks?.length || 0,
+        characters: doc.chunks?.join('').length || 0
+      }))
+    };
+  };
+
   return {
     handleDocumentUpload,
     handleSummarizeDoc,
     sendRAGQuestion,
     searchDocuments,
-    handleMediaUpload
+    handleMediaUpload,
+    getDocumentStats
   };
 }
