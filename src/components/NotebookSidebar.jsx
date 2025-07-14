@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -20,13 +20,25 @@ function NotebookSidebar({
   files, 
   collapsed, 
   setCollapsed, 
-  searchDocuments 
+  searchDocuments
 }) {
   const [activeTab, setActiveTab] = useState('files'); // files, plugins, settings
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [notebookTitle, setNotebookTitle] = useState(notebook?.title || '');
+  const [notebookDescription, setNotebookDescription] = useState(notebook?.description || '');
+  const [notebookTags, setNotebookTags] = useState(notebook?.tags?.join(', ') || '');
+  const [notebookModel, setNotebookModel] = useState(notebook?.model || '');
+
+  // Sync state with notebook prop changes
+  useEffect(() => {
+    setNotebookTitle(notebook?.title || '');
+    setNotebookDescription(notebook?.description || '');
+    setNotebookTags(notebook?.tags?.join(', ') || '');
+    setNotebookModel(notebook?.model || '');
+  }, [notebook]);
 
   const handleSearch = async () => {
     if (searchTerm.trim()) {
@@ -261,10 +273,14 @@ function NotebookSidebar({
         </label>
         <input
           type="text"
-          value={notebook?.title || ''}
-          className="w-full text-xs p-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          value={notebookTitle}
+          className="w-full text-xs p-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
           placeholder="Enter title..."
+          readOnly
         />
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          Title can be edited from the dashboard
+        </p>
       </div>
 
       <div>
@@ -272,7 +288,8 @@ function NotebookSidebar({
           Description
         </label>
         <textarea
-          value={notebook?.description || ''}
+          value={notebookDescription}
+          onChange={(e) => setNotebookDescription(e.target.value)}
           rows={3}
           className="w-full text-xs p-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
           placeholder="Enter description..."
@@ -285,7 +302,8 @@ function NotebookSidebar({
         </label>
         <input
           type="text"
-          value={notebook?.tags?.join(', ') || ''}
+          value={notebookTags}
+          onChange={(e) => setNotebookTags(e.target.value)}
           className="w-full text-xs p-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           placeholder="tag1, tag2, tag3..."
         />
@@ -296,7 +314,8 @@ function NotebookSidebar({
           Default Model
         </label>
         <select
-          value={notebook?.model || ''}
+          value={notebookModel}
+          onChange={(e) => setNotebookModel(e.target.value)}
           className="w-full text-xs p-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         >
           <option value="">Select model...</option>

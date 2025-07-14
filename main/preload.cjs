@@ -84,6 +84,9 @@ contextBridge.exposeInMainWorld('notebookAPI', {
   addFile: (notebookId, file, type) => ipcRenderer.invoke('add-notebook-file', notebookId, file, type),
   removeFile: (notebookId, fileName, type) => ipcRenderer.invoke('remove-notebook-file', notebookId, fileName, type),
   
+  // Media handling
+  getMediaPath: (notebookId, fileName, fileType) => ipcRenderer.invoke('get-notebook-media-path', { notebookId, fileName, fileType }),
+  
   // Migration
   migrateChatsToNotebooks: () => ipcRenderer.invoke('migrate-chats-to-notebooks'),
   backupChats: () => ipcRenderer.invoke('backup-chats'),

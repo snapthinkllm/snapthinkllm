@@ -22,7 +22,10 @@ function createWindow() {
 
   win.setMenu(null);
 
-  if (true) {
+  // Load appropriate URL based on environment
+  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+  
+  if (isDev) {
     win.loadURL('http://localhost:5173');
     win.webContents.openDevTools();
   } else {
@@ -1139,20 +1142,38 @@ ipcMain.handle('remove-notebook-file', (event, notebookId, fileName, type = 'doc
 });
 
 // -------------------- App Lifecycle --------------------
-app.whenReady().then(async () => {
-  const installed = await isOllamaInstalled();
 
-  if (!installed) {
-    const shouldProceed = await promptUserToInstallOllama();
-    if (!shouldProceed) return;
-  }
+// Prevent multiple instances
+const gotTheLock = app.requestSingleInstanceLock();
 
-  createWindow();
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', (event, commandLine, workingDirectory) => {
+    // Someone tried to run a second instance, focus our window instead
+    const windows = BrowserWindow.getAllWindows();
+    if (windows.length > 0) {
+      const mainWindow = windows[0];
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
   });
-});
+
+  app.whenReady().then(async () => {
+    const installed = await isOllamaInstalled();
+
+    if (!installed) {
+      const shouldProceed = await promptUserToInstallOllama();
+      if (!shouldProceed) return;
+    }
+
+    createWindow();
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+  });
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
@@ -1384,5 +1405,43 @@ ipcMain.handle('backup-chats', async () => {
   } catch (error) {
     console.error('❌ Error creating chat backup:', error);
     throw error;
+  }
+});
+
+// Get notebook media file path/data
+ipcMain.handle('get-notebook-media-path', async (event, { notebookId, fileName, fileType }) => {
+  try {
+    // Determine the subfolder based on file type
+    const subFolder = fileType === 'image' ? 'images' : fileType === 'video' ? 'videos' : 'images';
+    const mediaPath = path.join(notebooksDir, notebookId, subFolder, fileName);
+    
+    if (fs.existsSync(mediaPath)) {
+      // Read the file and convert to base64 data URL
+      const fileBuffer = fs.readFileSync(mediaPath);
+      const ext = path.extname(fileName).toLowerCase();
+      
+      // Determine MIME type based on extension
+      let mimeType = 'application/octet-stream';
+      if (['.jpg', '.jpeg'].includes(ext)) mimeType = 'image/jpeg';
+      else if (ext === '.png') mimeType = 'image/png';
+      else if (ext === '.gif') mimeType = 'image/gif';
+      else if (ext === '.webp') mimeType = 'image/webp';
+      else if (ext === '.bmp') mimeType = 'image/bmp';
+      else if (ext === '.mp4') mimeType = 'video/mp4';
+      else if (ext === '.webm') mimeType = 'video/webm';
+      else if (ext === '.ogg') mimeType = 'video/ogg';
+      else if (ext === '.avi') mimeType = 'video/x-msvideo';
+      else if (ext === '.mov') mimeType = 'video/quicktime';
+      
+      // Convert to data URL
+      const base64Data = fileBuffer.toString('base64');
+      return `data:${mimeType};base64,${base64Data}`;
+    }
+    
+    console.log(`❌ Media file not found: ${mediaPath}`);
+    return null;
+  } catch (err) {
+    console.error('❌ Error getting notebook media path:', err);
+    return null;
   }
 });

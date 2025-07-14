@@ -38,6 +38,7 @@ function NotebookWorkspace({ notebookId, onBackToDashboard }) {
 
   const {
     updateNotebookTitle,
+    updateNotebookMetadata,
     saveNotebook,
     loadNotebook,
     refreshFiles,
@@ -274,7 +275,7 @@ function NotebookWorkspace({ notebookId, onBackToDashboard }) {
       <>
         {mediaFile && (
           <div className="mb-3">
-            <MediaDisplay mediaFile={mediaFile} chatId={notebookId} />
+            <MediaDisplay mediaFile={mediaFile} notebookId={notebookId} />
           </div>
         )}
 
@@ -471,7 +472,7 @@ function NotebookWorkspace({ notebookId, onBackToDashboard }) {
                         <>
                           {m.mediaFile && (
                             <div className="mb-3">
-                              <MediaDisplay mediaFile={m.mediaFile} chatId={notebookId} />
+                              <MediaDisplay mediaFile={m.mediaFile} notebookId={notebookId} />
                             </div>
                           )}
                           <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>

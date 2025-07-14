@@ -10,7 +10,10 @@ import {
   Search,
   BookOpen,
   Clock,
-  Database
+  Database,
+  Edit3,
+  Check,
+  X
 } from 'lucide-react';
 import MigrationDialog from './MigrationDialog';
 
@@ -21,6 +24,8 @@ function NotebookDashboard({ onNotebookSelect, onCreateNotebook }) {
   const [sortBy, setSortBy] = useState('updatedAt'); // updatedAt, createdAt, title
   const [sortOrder, setSortOrder] = useState('desc'); // desc, asc
   const [showMigration, setShowMigration] = useState(false);
+  const [editingNotebook, setEditingNotebook] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
 
   useEffect(() => {
     loadNotebooks();
@@ -93,6 +98,46 @@ function NotebookDashboard({ onNotebookSelect, onCreateNotebook }) {
     
     // You could also show a success toast here if you have a toast system
     console.log('Migration completed:', migrationResult);
+  };
+
+  const handleStartEdit = (notebook, event) => {
+    event.stopPropagation();
+    setEditingNotebook(notebook.id);
+    setEditTitle(notebook.title);
+  };
+
+  const handleCancelEdit = (event) => {
+    event.stopPropagation();
+    setEditingNotebook(null);
+    setEditTitle('');
+  };
+
+  const handleSaveEdit = async (notebookId, event) => {
+    event.stopPropagation();
+    
+    if (!editTitle.trim()) {
+      alert('Title cannot be empty');
+      return;
+    }
+
+    try {
+      await window.notebookAPI.updateNotebook(notebookId, {
+        title: editTitle.trim()
+      });
+
+      // Update local state
+      setNotebooks(prev => prev.map(notebook => 
+        notebook.id === notebookId 
+          ? { ...notebook, title: editTitle.trim(), updatedAt: new Date().toISOString() }
+          : notebook
+      ));
+
+      setEditingNotebook(null);
+      setEditTitle('');
+    } catch (error) {
+      console.error('Failed to rename notebook:', error);
+      alert('Failed to rename notebook. Please try again.');
+    }
   };
 
   const filteredAndSortedNotebooks = notebooks
@@ -246,8 +291,16 @@ function NotebookDashboard({ onNotebookSelect, onCreateNotebook }) {
             {filteredAndSortedNotebooks.map((notebook) => (
               <div
                 key={notebook.id}
-                onClick={() => onNotebookSelect(notebook.id)}
-                className="group bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 overflow-hidden"
+                onClick={() => {
+                  if (editingNotebook !== notebook.id) {
+                    onNotebookSelect(notebook.id);
+                  }
+                }}
+                className={`group bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700 overflow-hidden ${
+                  editingNotebook === notebook.id 
+                    ? 'border-blue-500 dark:border-blue-400 cursor-default' 
+                    : 'cursor-pointer hover:border-blue-300 dark:hover:border-blue-600'
+                }`}
               >
                 {/* Thumbnail */}
                 <div className="h-32 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center relative">
@@ -263,6 +316,13 @@ function NotebookDashboard({ onNotebookSelect, onCreateNotebook }) {
                   
                   {/* Action buttons overlay */}
                   <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1">
+                    <button
+                      onClick={(e) => handleStartEdit(notebook, e)}
+                      className="p-1.5 bg-white/90 dark:bg-gray-800/90 rounded-full hover:bg-white dark:hover:bg-gray-800 transition-colors"
+                      title="Rename notebook"
+                    >
+                      <Edit3 className="h-3 w-3 text-gray-600 dark:text-gray-400" />
+                    </button>
                     <button
                       onClick={(e) => handleExportNotebook(notebook.id, e)}
                       className="p-1.5 bg-white/90 dark:bg-gray-800/90 rounded-full hover:bg-white dark:hover:bg-gray-800 transition-colors"
@@ -282,9 +342,44 @@ function NotebookDashboard({ onNotebookSelect, onCreateNotebook }) {
 
                 {/* Content */}
                 <div className="p-4">
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2 truncate">
-                    {notebook.title}
-                  </h3>
+                  {/* Title - editable or display mode */}
+                  {editingNotebook === notebook.id ? (
+                    <div className="flex items-center space-x-2 mb-2">
+                      <input
+                        type="text"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleSaveEdit(notebook.id, e);
+                          } else if (e.key === 'Escape') {
+                            handleCancelEdit(e);
+                          }
+                        }}
+                        className="flex-1 text-sm font-semibold bg-white dark:bg-gray-700 border border-blue-300 dark:border-blue-600 rounded px-2 py-1 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        autoFocus
+                      />
+                      <button
+                        onClick={(e) => handleSaveEdit(notebook.id, e)}
+                        className="p-1 text-green-600 hover:bg-green-100 dark:hover:bg-green-900 rounded"
+                        title="Save"
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={(e) => handleCancelEdit(e)}
+                        className="p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded"
+                        title="Cancel"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <h3 className="font-semibold text-gray-900 dark:text-white mb-2 truncate">
+                      {notebook.title}
+                    </h3>
+                  )}
                   
                   {notebook.description && (
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
@@ -327,6 +422,33 @@ function NotebookDashboard({ onNotebookSelect, onCreateNotebook }) {
                     </div>
                   </div>
                 </div>
+
+                {/* Edit Notebook Title */}
+                {editingNotebook === notebook.id && (
+                  <div className="p-4 pt-0">
+                    <input
+                      type="text"
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Enter notebook title"
+                    />
+                    <div className="flex justify-end gap-2 mt-2">
+                      <button
+                        onClick={(e) => handleSaveEdit(notebook.id, e)}
+                        className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={handleCancelEdit}
+                        className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>

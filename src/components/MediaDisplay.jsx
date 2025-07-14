@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { formatFileSize } from '../utils/mediaUtils';
 
-export default function MediaDisplay({ mediaFile, chatId }) {
+export default function MediaDisplay({ mediaFile, notebookId }) {
   const [mediaUrl, setMediaUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -12,10 +12,11 @@ export default function MediaDisplay({ mediaFile, chatId }) {
         setLoading(true);
         setError(false);
         
-        const url = await window.chatAPI.getMediaPath({
-          chatId,
-          fileName: mediaFile.fileName
-        });
+        const url = await window.notebookAPI.getMediaPath(
+          notebookId,
+          mediaFile.fileName,
+          mediaFile.fileType
+        );
         
         if (url) {
           setMediaUrl(url);
@@ -30,10 +31,10 @@ export default function MediaDisplay({ mediaFile, chatId }) {
       }
     };
 
-    if (mediaFile && chatId) {
+    if (mediaFile && notebookId) {
       loadMedia();
     }
-  }, [mediaFile, chatId]);
+  }, [mediaFile, notebookId]);
 
   if (loading) {
     return (
