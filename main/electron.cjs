@@ -25,7 +25,7 @@ function createWindow() {
   // Load appropriate URL based on environment
   const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
   
-  if (isDev) {
+  if (true) {
     win.loadURL('http://localhost:5173');
     win.webContents.openDevTools();
   } else {

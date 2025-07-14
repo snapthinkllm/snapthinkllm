@@ -381,6 +381,11 @@ export function useDocumentManager({
 
       console.log('✅ Media file saved to notebook');
 
+      // Refresh files list to update sidebar
+      if (refreshFiles) {
+        await refreshFiles();
+      }
+
       // Create a media message
       const mediaMessage = {
         role: 'user',

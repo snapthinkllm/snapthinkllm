@@ -5,61 +5,79 @@ import {
   Upload,
   Download,
   RefreshCw,
+  BookOpen,
 } from 'lucide-react';
 
 export default function ChatHeader({
   darkMode,
-  
   setDarkMode,
   handleExport,
   handleImport,
   setModelSelected,
 }) {
-  const iconClass = 'w-5 h-5 hover:scale-110 transition-transform';
-
   return (
-      <header className="px-4 py-2 bg-white/80 dark:bg-gray-800/90 backdrop-blur border-b border-gray-200 dark:border-gray-700 shadow-sm flex justify-between items-center">
-      {/* Left: Logo + Title */}
-      <div className="flex items-center gap-3 min-w-0">
-          {/* Logo container (resize as needed) */}
-          <div className="h-10 w-auto shrink-0">
-            <img
-              src="./logos/snapthink-light.png"
-              alt="SnapThink Logo"
-              className="h-full w-auto block dark:hidden"
-            />
-            <img
-              src="./logos/snapthink-dark.png"
-              alt="SnapThink Logo"
-              className="h-full w-auto hidden dark:block"
-            />
+    <header className="bg-gradient-to-r from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+      <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="flex items-center justify-between">
+          {/* Left: Logo + Title */}
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center justify-center w-10 h-10 bg-blue-500 rounded-lg">
+              <BookOpen className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                SnapThink
+              </h1>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                AI Notebook Workspace
+              </p>
+            </div>
           </div>
 
-          {/* Title */}
-          <h1 className="text-xl font-semibold tracking-tight text-[#1e4b6d] dark:text-slate-100 whitespace-nowrap">
-            SnapThink LLM
-          </h1>
+          {/* Right: Action Buttons */}
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+            
+            <button
+              onClick={() => window.chatAPI.showChatFolder()}
+              className="p-2 text-gray-600 dark:text-gray-400 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded-lg transition-colors"
+              title="Open Chat Folder"
+            >
+              <Folder className="w-5 h-5" />
+            </button>
+            
+            <button
+              onClick={handleExport}
+              className="p-2 text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+              title="Export Current Chat"
+            >
+              <Upload className="w-5 h-5" />
+            </button>
+            
+            <button
+              onClick={handleImport}
+              className="p-2 text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
+              title="Import Chat"
+            >
+              <Download className="w-5 h-5" />
+            </button>
+            
+            <button
+              onClick={() => setModelSelected(null)}
+              className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+              title="Change Model"
+            >
+              <RefreshCw className="w-5 h-5" />
+            </button>
+          </div>
         </div>
-
-      {/* Right: Action Buttons */}
-      <div className="flex items-center gap-4">
-        <button title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'} onClick={() => setDarkMode(!darkMode)} className="text-gray-800 dark:text-white hover:text-blue-500">
-          {darkMode ? <Sun className={iconClass} /> : <Moon className={iconClass} />}
-        </button>
-        <button title="Open Chat Folder" onClick={() => window.chatAPI.showChatFolder()} className="text-gray-800 dark:text-white hover:text-yellow-500">
-          <Folder className={iconClass} />
-        </button>
-        <button title="Export Current Chat" onClick={handleExport} className="text-gray-800 dark:text-white hover:text-green-500">
-          <Upload className={iconClass} />
-        </button>
-        <button title="Import Chat" onClick={handleImport} className="text-gray-800 dark:text-white hover:text-purple-500">
-          <Download className={iconClass} />
-        </button>
-        <button title="Change Model" onClick={() => setModelSelected(null)} className="text-gray-800 dark:text-white hover:text-red-500">
-          <RefreshCw className={iconClass} />
-        </button>
       </div>
-  </header>
-
+    </header>
   );
 }
