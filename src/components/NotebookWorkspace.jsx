@@ -7,6 +7,7 @@ import ModelSelector from '../pages/ModelSelector';
 import ChatHeader from '../ui-elements/ChatHeader';
 import ChatFooter from '../ui-elements/ChatFooter';
 import DownloadProgressModal from '../ui-elements/DownloadProgressModal';
+import DocumentProcessingModal from '../ui-elements/DocumentProcessingModal';
 import MediaDisplay from './MediaDisplay';
 import { useNotebookManager } from '../hooks/useNotebookManager';
 import { useDocumentManager } from '../hooks/useDocumentManager';
@@ -36,6 +37,12 @@ function NotebookWorkspace({ notebookId, onBackToDashboard }) {
   const [detail, setDetail] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [files, setFiles] = useState({ docs: [], images: [], videos: [], outputs: [] });
+  
+  // Document processing state
+  const [processingDoc, setProcessingDoc] = useState(null);
+  const [processingStage, setProcessingStage] = useState('');
+  const [processingProgress, setProcessingProgress] = useState(0);
+  const [processingDetails, setProcessingDetails] = useState('');
 
   // Debounce input changes to prevent excessive re-renders
   useEffect(() => {
@@ -261,6 +268,11 @@ function NotebookWorkspace({ notebookId, onBackToDashboard }) {
     modelSelected,
     setModelSelected,
     refreshFiles, // Pass refreshFiles function
+    // Document processing state handlers
+    setProcessingDoc,
+    setProcessingStage,
+    setProcessingProgress,
+    setProcessingDetails,
   });
 
   const handleExport = useCallback(async () => {
@@ -572,6 +584,23 @@ function NotebookWorkspace({ notebookId, onBackToDashboard }) {
             setDownloading(null);
             setStatus(null);
             setProgress(null);
+          }}
+        />
+      )}
+
+      {/* Document Processing Modal */}
+      {processingDoc && (
+        <DocumentProcessingModal
+          isOpen={!!processingDoc}
+          fileName={processingDoc}
+          stage={processingStage}
+          progress={processingProgress}
+          details={processingDetails}
+          onCancel={() => {
+            setProcessingDoc(null);
+            setProcessingStage('');
+            setProcessingProgress(0);
+            setProcessingDetails('');
           }}
         />
       )}

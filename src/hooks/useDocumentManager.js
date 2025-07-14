@@ -47,16 +47,36 @@ export function useDocumentManager({
   modelSelected,
   setModelSelected,
   refreshFiles, // Add refreshFiles callback
+  // Document processing state handlers
+  setProcessingDoc,
+  setProcessingStage,
+  setProcessingProgress,
+  setProcessingDetails,
 }) {
   const handleDocumentUpload = async (e) => {
     const file = e.target.files[0];
     if (!file || !notebookId) return;
 
+    // Start processing indication
+    setProcessingDoc(file.name);
+    setProcessingStage('parsing');
+    setProcessingProgress(10);
+
     try {
+      // Stage 1: Parse the document
       const parsedText = await parseUploadedFile(file);
+      setProcessingProgress(25);
       showParsedPreview(parsedText, file.name);
 
+      // Stage 2: Process and embed the document
+      setProcessingStage('chunking');
+      setProcessingProgress(30);
+      
       const doc = await embedAndPersistDocument(file, notebookId, parsedText);
+      
+      // Stage 3: Complete
+      setProcessingStage('complete');
+      setProcessingProgress(100);
 
       updateRagState(doc);
       await saveAutoSummaryPrompt(doc);
@@ -67,8 +87,28 @@ export function useDocumentManager({
       }
 
       setToast(`✅ Document uploaded and persisted. RAG ready.`);
+      
+      // Auto-close modal after a brief delay
+      setTimeout(() => {
+        setProcessingDoc(null);
+        setProcessingStage('');
+        setProcessingProgress(0);
+        setProcessingDetails('');
+      }, 1500);
+
     } catch (err) {
       console.error('❌ Document upload error:', err);
+      setProcessingStage('error');
+      setProcessingProgress(0);
+      
+      // Keep error modal open longer for user to see
+      setTimeout(() => {
+        setProcessingDoc(null);
+        setProcessingStage('');
+        setProcessingProgress(0);
+        setProcessingDetails('');
+      }, 3000);
+      
       alert('Failed to parse or persist the document. Please try again.');
     }
   };
@@ -185,14 +225,50 @@ ${allText}`;
 
   const embedChunksLocally = async (chunks) => {
     await ensureEmbeddingModel(setDownloading, setStatus, setProgress, setDetail);
-    return await embedMultiple(chunks);
+    
+    // Create a custom embed function that tracks progress
+    const results = [];
+    const totalChunks = chunks.length;
+    
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      const embedding = await getEmbedding(chunk);
+      results.push({ chunk, embedding });
+      
+      // Update progress and details during embedding (55% to 85% range)
+      const embeddingProgress = 55 + ((i + 1) / totalChunks) * 30;
+      setProcessingProgress(Math.round(embeddingProgress));
+      setProcessingDetails(`Processing chunk ${i + 1} of ${totalChunks}...`);
+    }
+    
+    return results;
   };
 
   const embedAndPersistDocument = async (file, notebookId, parsedText) => {
     const docId = uuidv4();
     const ext = file.name.split('.').pop();
+    
+    // Stage 1: Chunking (already set in handleDocumentUpload)
     const chunks = chunkText(parsedText, 300, 50);
+    
+    // Show chunk count for user information
+    setProcessingStage('chunking');
+    setProcessingProgress(40);
+    
+    // Small delay to show chunking stage
+    await new Promise(resolve => setTimeout(resolve, 500));
+    setProcessingProgress(50);
+    
+    // Stage 2: Embedding
+    setProcessingStage('embedding');
+    setProcessingProgress(55);
+    setProcessingDetails(`Creating embeddings for ${chunks.length} chunks...`);
     const embeddings = await embedChunksLocally(chunks);
+    setProcessingProgress(85);
+
+    // Stage 3: Saving
+    setProcessingStage('saving');
+    setProcessingProgress(90);
 
     // Create document metadata
     const docMetadata = {
@@ -220,8 +296,10 @@ ${allText}`;
 
     // Add file to notebook using the notebook API
     await window.notebookAPI.addFile(notebookId, tempFile, 'docs');
+    setProcessingProgress(95);
 
     console.log('✅ Document persisted to notebook:', docMetadata);
+    console.log(`📊 Created ${chunks.length} chunks from ${file.name}`);
 
     return {
       id: docId,
