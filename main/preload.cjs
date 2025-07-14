@@ -86,4 +86,7 @@ contextBridge.exposeInMainWorld('notebookAPI', {
   
   // Media handling
   getMediaPath: (notebookId, fileName, fileType) => ipcRenderer.invoke('get-notebook-media-path', { notebookId, fileName, fileType }),
+  
+  // Folder operations
+  showNotebookFolder: () => ipcRenderer.send('show-notebook-folder'),
 });

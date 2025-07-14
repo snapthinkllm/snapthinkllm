@@ -2,8 +2,6 @@ import {
   Sun,
   Moon,
   Folder,
-  Upload,
-  Download,
   RefreshCw,
   BookOpen,
 } from 'lucide-react';
@@ -11,8 +9,6 @@ import {
 export default function ChatHeader({
   darkMode,
   setDarkMode,
-  handleExport,
-  handleImport,
   setModelSelected,
 }) {
   return (
@@ -45,27 +41,11 @@ export default function ChatHeader({
             </button>
             
             <button
-              onClick={() => window.chatAPI.showChatFolder()}
+              onClick={() => window.notebookAPI.showNotebookFolder()}
               className="p-2 text-gray-600 dark:text-gray-400 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded-lg transition-colors"
-              title="Open Chat Folder"
+              title="Open Notebooks Folder"
             >
               <Folder className="w-5 h-5" />
-            </button>
-            
-            <button
-              onClick={handleExport}
-              className="p-2 text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
-              title="Export Current Chat"
-            >
-              <Upload className="w-5 h-5" />
-            </button>
-            
-            <button
-              onClick={handleImport}
-              className="p-2 text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
-              title="Import Chat"
-            >
-              <Download className="w-5 h-5" />
             </button>
             
             <button

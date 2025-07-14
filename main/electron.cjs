@@ -160,6 +160,10 @@ ipcMain.on('show-chat-folder', () => {
   shell.openPath(chatsDir);
 });
 
+ipcMain.on('show-notebook-folder', () => {
+  shell.openPath(notebooksDir);
+});
+
 
 ipcMain.handle('delete-chat', async (event, chatId) => {
   try {
