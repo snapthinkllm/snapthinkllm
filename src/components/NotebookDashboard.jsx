@@ -26,6 +26,8 @@ function NotebookDashboard({ onNotebookSelect, onCreateNotebook }) {
   const [showMigration, setShowMigration] = useState(false);
   const [editingNotebook, setEditingNotebook] = useState(null);
   const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editTags, setEditTags] = useState('');
 
   useEffect(() => {
     loadNotebooks();
@@ -104,12 +106,16 @@ function NotebookDashboard({ onNotebookSelect, onCreateNotebook }) {
     event.stopPropagation();
     setEditingNotebook(notebook.id);
     setEditTitle(notebook.title);
+    setEditDescription(notebook.description || '');
+    setEditTags(notebook.tags?.join(', ') || '');
   };
 
   const handleCancelEdit = (event) => {
     event.stopPropagation();
     setEditingNotebook(null);
     setEditTitle('');
+    setEditDescription('');
+    setEditTags('');
   };
 
   const handleSaveEdit = async (notebookId, event) => {
@@ -121,22 +127,34 @@ function NotebookDashboard({ onNotebookSelect, onCreateNotebook }) {
     }
 
     try {
-      await window.notebookAPI.updateNotebook(notebookId, {
-        title: editTitle.trim()
-      });
+      const updatedData = {
+        title: editTitle.trim(),
+        description: editDescription.trim(),
+        tags: editTags.split(',').map(tag => tag.trim()).filter(Boolean)
+      };
+
+      await window.notebookAPI.updateNotebook(notebookId, updatedData);
 
       // Update local state
       setNotebooks(prev => prev.map(notebook => 
         notebook.id === notebookId 
-          ? { ...notebook, title: editTitle.trim(), updatedAt: new Date().toISOString() }
+          ? { 
+              ...notebook, 
+              title: updatedData.title,
+              description: updatedData.description,
+              tags: updatedData.tags,
+              updatedAt: new Date().toISOString() 
+            }
           : notebook
       ));
 
       setEditingNotebook(null);
       setEditTitle('');
+      setEditDescription('');
+      setEditTags('');
     } catch (error) {
-      console.error('Failed to rename notebook:', error);
-      alert('Failed to rename notebook. Please try again.');
+      console.error('Failed to update notebook:', error);
+      alert('Failed to update notebook. Please try again.');
     }
   };
 
@@ -344,111 +362,141 @@ function NotebookDashboard({ onNotebookSelect, onCreateNotebook }) {
                 <div className="p-4">
                   {/* Title - editable or display mode */}
                   {editingNotebook === notebook.id ? (
-                    <div className="flex items-center space-x-2 mb-2">
-                      <input
-                        type="text"
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleSaveEdit(notebook.id, e);
-                          } else if (e.key === 'Escape') {
-                            handleCancelEdit(e);
-                          }
-                        }}
-                        className="flex-1 text-sm font-semibold bg-white dark:bg-gray-700 border border-blue-300 dark:border-blue-600 rounded px-2 py-1 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        autoFocus
-                      />
-                      <button
-                        onClick={(e) => handleSaveEdit(notebook.id, e)}
-                        className="p-1 text-green-600 hover:bg-green-100 dark:hover:bg-green-900 rounded"
-                        title="Save"
-                      >
-                        <Check className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={(e) => handleCancelEdit(e)}
-                        className="p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded"
-                        title="Cancel"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
+                    <div className="space-y-3">
+                      {/* Title Input */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Title
+                        </label>
+                        <input
+                          type="text"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              handleSaveEdit(notebook.id, e);
+                            } else if (e.key === 'Escape') {
+                              handleCancelEdit(e);
+                            }
+                          }}
+                          className="w-full text-sm font-semibold bg-white dark:bg-gray-700 border border-blue-300 dark:border-blue-600 rounded px-3 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          autoFocus
+                        />
+                      </div>
+
+                      {/* Description Input */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Description
+                        </label>
+                        <textarea
+                          value={editDescription}
+                          onChange={(e) => setEditDescription(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                              handleCancelEdit(e);
+                            }
+                          }}
+                          rows={3}
+                          className="w-full text-sm bg-white dark:bg-gray-700 border border-blue-300 dark:border-blue-600 rounded px-3 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                          placeholder="Enter description..."
+                        />
+                      </div>
+
+                      {/* Tags Input */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Tags
+                        </label>
+                        <input
+                          type="text"
+                          value={editTags}
+                          onChange={(e) => setEditTags(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                              handleCancelEdit(e);
+                            }
+                          }}
+                          className="w-full text-sm bg-white dark:bg-gray-700 border border-blue-300 dark:border-blue-600 rounded px-3 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="tag1, tag2, tag3..."
+                        />
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          Separate tags with commas
+                        </p>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex items-center justify-end space-x-2 pt-2">
+                        <button
+                          onClick={(e) => handleSaveEdit(notebook.id, e)}
+                          className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs rounded-md transition-colors flex items-center space-x-1"
+                          title="Save changes"
+                        >
+                          <Check className="h-3 w-3" />
+                          <span>Save</span>
+                        </button>
+                        <button
+                          onClick={(e) => handleCancelEdit(e)}
+                          className="px-3 py-1.5 bg-gray-500 hover:bg-gray-600 text-white text-xs rounded-md transition-colors flex items-center space-x-1"
+                          title="Cancel changes"
+                        >
+                          <X className="h-3 w-3" />
+                          <span>Cancel</span>
+                        </button>
+                      </div>
                     </div>
                   ) : (
-                    <h3 className="font-semibold text-gray-900 dark:text-white mb-2 truncate">
-                      {notebook.title}
-                    </h3>
-                  )}
-                  
-                  {notebook.description && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
-                      {notebook.description}
-                    </p>
-                  )}
+                    <>
+                      <h3 className="font-semibold text-gray-900 dark:text-white mb-2 truncate">
+                        {notebook.title}
+                      </h3>
+                      
+                      {notebook.description && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
+                          {notebook.description}
+                        </p>
+                      )}
 
-                  {/* Tags */}
-                  {notebook.tags && notebook.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mb-3">
-                      {notebook.tags.slice(0, 3).map((tag, index) => (
-                        <span
-                          key={index}
-                          className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                      {notebook.tags.length > 3 && (
-                        <span className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full">
-                          +{notebook.tags.length - 3}
-                        </span>
+                      {/* Tags */}
+                      {notebook.tags && notebook.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {notebook.tags.slice(0, 3).map((tag, index) => (
+                            <span
+                              key={index}
+                              className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                          {notebook.tags.length > 3 && (
+                            <span className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full">
+                              +{notebook.tags.length - 3}
+                            </span>
+                          )}
+                        </div>
                       )}
-                    </div>
-                  )}
 
-                  {/* Stats */}
-                  <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                    <div className="flex items-center space-x-1">
-                      <Clock className="h-3 w-3" />
-                      <span>{formatDate(notebook.updatedAt)}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      {notebook.stats?.totalMessages && (
-                        <span>{notebook.stats.totalMessages} msgs</span>
-                      )}
-                      {notebook.stats?.totalFiles && (
-                        <span>{notebook.stats.totalFiles} files</span>
-                      )}
-                    </div>
-                  </div>
+                      {/* Stats */}
+                      <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                        <div className="flex items-center space-x-1">
+                          <Clock className="h-3 w-3" />
+                          <span>{formatDate(notebook.updatedAt)}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {notebook.stats?.totalMessages && (
+                            <span>{notebook.stats.totalMessages} msgs</span>
+                          )}
+                          {notebook.stats?.totalFiles && (
+                            <span>{notebook.stats.totalFiles} files</span>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
-
-                {/* Edit Notebook Title */}
-                {editingNotebook === notebook.id && (
-                  <div className="p-4 pt-0">
-                    <input
-                      type="text"
-                      value={editTitle}
-                      onChange={(e) => setEditTitle(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Enter notebook title"
-                    />
-                    <div className="flex justify-end gap-2 mt-2">
-                      <button
-                        onClick={(e) => handleSaveEdit(notebook.id, e)}
-                        className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={handleCancelEdit}
-                        className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             ))}
           </div>

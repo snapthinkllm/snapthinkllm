@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -27,18 +27,12 @@ function NotebookSidebar({
   const [searchResults, setSearchResults] = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const [notebookTitle, setNotebookTitle] = useState(notebook?.title || '');
-  const [notebookDescription, setNotebookDescription] = useState(notebook?.description || '');
-  const [notebookTags, setNotebookTags] = useState(notebook?.tags?.join(', ') || '');
-  const [notebookModel, setNotebookModel] = useState(notebook?.model || '');
 
-  // Sync state with notebook prop changes
-  useEffect(() => {
-    setNotebookTitle(notebook?.title || '');
-    setNotebookDescription(notebook?.description || '');
-    setNotebookTags(notebook?.tags?.join(', ') || '');
-    setNotebookModel(notebook?.model || '');
-  }, [notebook]);
+  // Read-only notebook metadata for display
+  const notebookTitle = notebook?.title || '';
+  const notebookDescription = notebook?.description || '';
+  const notebookTags = notebook?.tags?.join(', ') || '';
+  const notebookModel = notebook?.model || '';
 
   const handleSearch = async () => {
     if (searchTerm.trim()) {
@@ -289,11 +283,14 @@ function NotebookSidebar({
         </label>
         <textarea
           value={notebookDescription}
-          onChange={(e) => setNotebookDescription(e.target.value)}
           rows={3}
-          className="w-full text-xs p-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-          placeholder="Enter description..."
+          className="w-full text-xs p-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 resize-none"
+          placeholder="No description"
+          readOnly
         />
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          Description can be edited from the dashboard
+        </p>
       </div>
 
       <div>
@@ -303,10 +300,13 @@ function NotebookSidebar({
         <input
           type="text"
           value={notebookTags}
-          onChange={(e) => setNotebookTags(e.target.value)}
-          className="w-full text-xs p-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          placeholder="tag1, tag2, tag3..."
+          className="w-full text-xs p-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+          placeholder="No tags"
+          readOnly
         />
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          Tags can be edited from the dashboard
+        </p>
       </div>
 
       <div>
@@ -315,14 +315,17 @@ function NotebookSidebar({
         </label>
         <select
           value={notebookModel}
-          onChange={(e) => setNotebookModel(e.target.value)}
-          className="w-full text-xs p-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full text-xs p-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+          disabled
         >
-          <option value="">Select model...</option>
+          <option value="">No model selected</option>
           <option value="llama3.1:8b">Llama 3.1 8B</option>
           <option value="llama3.1:70b">Llama 3.1 70B</option>
           <option value="codellama:13b">CodeLlama 13B</option>
         </select>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          Model settings managed globally
+        </p>
       </div>
 
       <div className="pt-4 border-t border-gray-200 dark:border-gray-600">
