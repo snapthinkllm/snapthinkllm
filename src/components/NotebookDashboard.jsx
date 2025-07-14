@@ -87,7 +87,8 @@ function NotebookDashboard({ onNotebookSelect, onCreateNotebook }) {
     try {
       const notebook = await window.notebookAPI.importNotebook();
       if (notebook) {
-        setNotebooks(prev => [notebook, ...prev]);
+        // Refresh the entire notebooks list to ensure we have the latest data
+        await loadNotebooks();
       }
     } catch (error) {
       console.error('Failed to import notebook:', error);
@@ -160,9 +161,9 @@ function NotebookDashboard({ onNotebookSelect, onCreateNotebook }) {
 
   const filteredAndSortedNotebooks = notebooks
     .filter(notebook => 
-      notebook.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      notebook.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       notebook.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      notebook.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+      notebook.tags?.some(tag => tag?.toLowerCase().includes(searchTerm.toLowerCase()))
     )
     .sort((a, b) => {
       let aValue = a[sortBy];
