@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -16,6 +16,7 @@ function NotebookWorkspace({ notebookId, onBackToDashboard }) {
   const [notebook, setNotebook] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
+  const [debouncedInput, setDebouncedInput] = useState(''); // For debounced rendering
   const [loading, setLoading] = useState(false);
   const [modelSelected, setModelSelected] = useState(null);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
@@ -35,6 +36,15 @@ function NotebookWorkspace({ notebookId, onBackToDashboard }) {
   const [detail, setDetail] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [files, setFiles] = useState({ docs: [], images: [], videos: [], outputs: [] });
+
+  // Debounce input changes to prevent excessive re-renders
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedInput(input);
+    }, 150); // 150ms debounce delay
+
+    return () => clearTimeout(timeoutId);
+  }, [input]);
 
   const {
     updateNotebookTitle,
@@ -72,16 +82,15 @@ function NotebookWorkspace({ notebookId, onBackToDashboard }) {
   }, [notebookId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading]);
+    const timeoutId = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+    return () => clearTimeout(timeoutId);
+  }, [messages.length, loading]);
 
-  useEffect(() => {
-    console.log('📄 NotebookWorkspace notebookId:', notebookId, 'modelSelected:', modelSelected);
-  }, [notebookId, modelSelected]);
+  // Debounce input changes to prevent excessive re-renders
 
-  function buildMessageContext(inputText, metadata = {}) {
-    console.log('🔄 Building message context for input:', inputText, 'with metadata:', metadata, 'messages:', messages);
-
+  const buildMessageContext = useCallback((inputText, metadata = {}) => {
     const userMessage = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -104,11 +113,10 @@ function NotebookWorkspace({ notebookId, onBackToDashboard }) {
 
     console.log('📄 No sources provided, sending user message only', messagesArray);
     return [[...messagesArray, userMessage], userMessage];
-  }
+  }, [messages]);
 
-  const sendMessage = async (customInput, metadata = {}) => {
-    console.log('📤 sendMessage called with input:', customInput, 'and metadata:', metadata);
-    const messageToSend = typeof customInput === 'string' ? customInput : input;
+  const sendMessage = useCallback(async (customInput, metadata = {}) => {
+    const messageToSend = typeof customInput === 'string' ? customInput : debouncedInput;
 
     if (!messageToSend?.trim?.()) return;
     if (!notebookId) return alert('Please select a notebook first.');
@@ -116,9 +124,9 @@ function NotebookWorkspace({ notebookId, onBackToDashboard }) {
     const [finalMessages, userMessage] = buildMessageContext(messageToSend, metadata);
     const updatedUI = [...messages, userMessage];
 
-    console.log('📤 Sending message:', updatedUI);
     setMessages(updatedUI);
     setInput('');
+    setDebouncedInput('');
     setLoading(true);
 
     // Auto-update notebook title from first message
@@ -128,8 +136,6 @@ function NotebookWorkspace({ notebookId, onBackToDashboard }) {
         await updateNotebookTitle(trimmed);
       }
     }
-
-    console.log('📤 Final message history sent to LLM:', finalMessages);
 
     const start = performance.now();
 
@@ -192,15 +198,14 @@ function NotebookWorkspace({ notebookId, onBackToDashboard }) {
     }
 
     setLoading(false);
-  };
+  }, [debouncedInput, notebookId, messages, buildMessageContext, updateNotebookTitle, saveNotebook, modelSelected]);
 
-  function extractPythonCode(markdown) {
+  const extractPythonCode = useCallback((markdown) => {
     const match = markdown.match(/```python\s+([\s\S]*?)```/);
     return match ? match[1] : null;
-  }
+  }, []);
 
-  async function runPython(codeMarkdown) {
-    console.log('🐍 Running Python code from markdown:', codeMarkdown);
+  const runPython = useCallback(async (codeMarkdown) => {
     const code = extractPythonCode(codeMarkdown);
     if (!code) return;
 
@@ -216,7 +221,19 @@ function NotebookWorkspace({ notebookId, onBackToDashboard }) {
     const updatedMessages = [...messages, newMessage];
     setMessages(updatedMessages);
     await saveNotebook(updatedMessages);
-  }
+  }, [messages, saveNotebook, extractPythonCode]);
+
+  // Memoize the stats display to prevent unnecessary re-renders
+  const statsDisplay = useMemo(() => (
+    <div className="inline-block text-xs font-mono px-4 py-2 text-gray-700 dark:text-gray-300 bg-white/40 dark:bg-gray-700/40 backdrop-blur rounded-md shadow">
+      <p className="whitespace-pre-wrap text-center">
+        🤖 Model: <span className="font-semibold">{modelSelected}</span> |
+        🧮 Tokens: <span className="font-semibold">{stats.totalTokens}</span> |
+        ⚡ Speed: <span className="font-semibold">{stats.tokensPerSecond}/s</span> |
+        🧠 Context: <span className="font-semibold">{stats.contextTokens}</span>
+      </p>
+    </div>
+  ), [modelSelected, stats.totalTokens, stats.tokensPerSecond, stats.contextTokens]);
 
   const {
     handleDocumentUpload,
@@ -246,30 +263,26 @@ function NotebookWorkspace({ notebookId, onBackToDashboard }) {
     refreshFiles, // Pass refreshFiles function
   });
 
-  const handleExport = async () => {
-    console.log('📤 Exporting notebook:', notebookId);
+  const handleExport = useCallback(async () => {
     if (!notebookId) return;
     await window.notebookAPI.exportNotebook(notebookId);
-  };
+  }, [notebookId]);
 
-  function escapeHtmlDangerousTags(input) {
+  const escapeHtmlDangerousTags = useCallback((input) => {
     return input
       .replace(/<textarea/gi, '&lt;textarea')
       .replace(/<\/textarea>/gi, '&lt;/textarea&gt;')
       .replace(/<script/gi, '&lt;script')
       .replace(/<\/script>/gi, '&lt;/script&gt;');
-  }
+  }, []);
 
-  function renderWithThinking(text, sources = [], onRunCode, mediaFile = null) {
-    //console.log('🔄 renderWithThinking called with text:', text, 'sources:', sources);
+  const renderWithThinking = useCallback((text, sources = [], onRunCode, mediaFile = null) => {
     const parts = text.split(/(<think>[\s\S]*?<\/think>)/g);
 
     const shouldShowRunButton =
       typeof onRunCode === 'function' &&
       text.includes('```python') &&
       !text.includes('```python-output');
-
-    console.log('🔄 shouldShowRunButton:', shouldShowRunButton);
 
     return (
       <>
@@ -375,7 +388,54 @@ function NotebookWorkspace({ notebookId, onBackToDashboard }) {
         )}
       </>
     );
-  }
+  }, [notebookId, escapeHtmlDangerousTags]);
+
+  // Memoized message component with React.memo for maximum performance
+  const MessageComponent = useMemo(() => 
+    React.memo(({ message, index }) => {
+      const handleRunCode = useCallback(() => runPython(message.content), [message.content]);
+      
+      return (
+        <div
+          className={`px-5 py-3 rounded-2xl shadow-md transition-all duration-300 ${
+            message.role === 'user'
+              ? 'max-w-lg bg-[#a2bdf7] text-slate-900 dark:bg-gray-600 dark:text-white self-end ml-auto'
+              : 'max-w-4xl bg-[#dfe2e8] dark:bg-slate-800 text-black dark:text-white self-start'
+          }`}
+        >
+          <div className="text-xs opacity-60 mb-1">
+            <b>{message.role === 'user' ? 'You' : 'Bot'}:</b>{' '}
+            {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </div>
+          <div className="prose dark:prose-invert max-w-none">
+            {message.role === 'assistant'
+              ? renderWithThinking(message.content, message.sources, handleRunCode, message.mediaFile)
+              : (
+                <>
+                  {message.mediaFile && (
+                    <div className="mb-3">
+                      <MediaDisplay mediaFile={message.mediaFile} notebookId={notebookId} />
+                    </div>
+                  )}
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                    {message.content}
+                  </ReactMarkdown>
+                </>
+              )
+            }
+          </div>
+        </div>
+      );
+    }, (prevProps, nextProps) => {
+      // Custom comparison function - only re-render if message content actually changed
+      return (
+        prevProps.message.id === nextProps.message.id &&
+        prevProps.message.content === nextProps.message.content &&
+        prevProps.message.role === nextProps.message.role &&
+        prevProps.message.timestamp === nextProps.message.timestamp
+      );
+    })
+  , [runPython, renderWithThinking, notebookId]);
 
   const handleCancelDownload = () => {
     window.chatAPI.cancelDownload?.();
@@ -453,36 +513,7 @@ function NotebookWorkspace({ notebookId, onBackToDashboard }) {
           ) : (
             <>
               {Array.isArray(messages) && messages.map((m, i) => (
-                <div
-                  key={m.id || i}
-                  className={`px-5 py-3 rounded-2xl shadow-md transition-all duration-300 ${
-                    m.role === 'user'
-                      ? 'max-w-lg bg-[#a2bdf7] text-slate-900 dark:bg-gray-600 dark:text-white self-end ml-auto'
-                      : 'max-w-4xl bg-[#dfe2e8] dark:bg-slate-800 text-black dark:text-white self-start'
-                  }`}
-                >
-                  <div className="text-xs opacity-60 mb-1">
-                    <b>{m.role === 'user' ? 'You' : 'Bot'}:</b>{' '}
-                    {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                  <div className="prose dark:prose-invert max-w-none">
-                    {m.role === 'assistant'
-                      ? renderWithThinking(m.content, m.sources, () => runPython(m.content), m.mediaFile)
-                      : (
-                        <>
-                          {m.mediaFile && (
-                            <div className="mb-3">
-                              <MediaDisplay mediaFile={m.mediaFile} notebookId={notebookId} />
-                            </div>
-                          )}
-                          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-                            {m.content}
-                          </ReactMarkdown>
-                        </>
-                      )
-                    }
-                  </div>
-                </div>
+                <MessageComponent key={m.id || i} message={m} index={i} />
               ))}
               {loading && (
                 <div className="max-w-lg px-5 py-3 rounded-2xl bg-[#e6edf7] dark:bg-gray-700/60 text-black dark:text-white self-start mr-auto shadow-md">
@@ -492,14 +523,7 @@ function NotebookWorkspace({ notebookId, onBackToDashboard }) {
               <div ref={messagesEndRef}></div>
 
               <div className="flex justify-center mt-2">
-                <div className="inline-block text-xs font-mono px-4 py-2 text-gray-700 dark:text-gray-300 bg-white/40 dark:bg-gray-700/40 backdrop-blur rounded-md shadow">
-                  <p className="whitespace-pre-wrap text-center">
-                    🤖 Model: <span className="font-semibold">{modelSelected}</span> |
-                    🧮 Tokens: <span className="font-semibold">{stats.totalTokens}</span> |
-                    ⚡ Speed: <span className="font-semibold">{stats.tokensPerSecond}/s</span> |
-                    🧠 Context: <span className="font-semibold">{stats.contextTokens}</span>
-                  </p>
-                </div>
+                {statsDisplay}
               </div>
             </>
           )}
