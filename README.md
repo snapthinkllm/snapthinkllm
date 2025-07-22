@@ -1,3 +1,8 @@
+This repository contains a minimal open-source version of SnapThink Notebooks.
+The full-featured version is not open sourced, but a free beta is available for download on our website.
+
+We welcome feedback and contributions on the minimal and the  full version!
+
 # 🚀 SnapThink LLM – Local AI Chat App
 
 SnapThink is a powerful local chat UI powered by [Ollama](https://ollama.com) and Electron. It supports model management, chat session history, markdown rendering, document summarization, and retrieval-augmented generation (RAG) – all locally on your machine.
